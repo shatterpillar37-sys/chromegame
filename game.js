@@ -147,10 +147,17 @@ function buyNode(n) {
   if (S.up[n.id] || (n.req && !S.up[n.req]) || S.steps < n.cost) return;
   S.steps -= n.cost; S.up[n.id] = 1; jingle(); toast('Unlocked: ' + n.name);
 }
+// two-click confirm (alert/confirm dialogs are unavailable in some viewers)
+function armed(btn, msg) {
+  if (btn.dataset.armed) { delete btn.dataset.armed; btn.textContent = btn.dataset.label; return true; }
+  btn.dataset.label = btn.textContent; btn.dataset.armed = 1; btn.textContent = msg;
+  setTimeout(() => { if (btn.dataset.armed) { delete btn.dataset.armed; btn.textContent = btn.dataset.label; } }, 4000);
+  return false;
+}
 function cutGain() { return Math.floor(Math.sqrt(S.runTotal / 100000)); }
 function cutaway() {
   const g = cutGain(); if (g < 1) return;
-  if (!confirm('Cut to the next scene? You keep ' + g + ' Sole Power, but lose Steps, buildings and tree upgrades.')) return;
+  if (!armed($('#cutBtn'), 'Really cut? You keep ' + g + ' Sole Power. Click again')) return;
   const keep = { sole: S.sole + g, cuts: S.cuts + 1, dodges: S.dodges, life: S.life, muted: S.muted };
   S = Object.assign(fresh(), keep);
   pursuers.forEach(p => p.el.remove()); pursuers = [];
@@ -312,7 +319,7 @@ function wire() {
     catch (e) { toast('That save text is not valid'); }
   });
   $('#resetBtn').addEventListener('click', () => {
-    if (confirm('Erase everything and start over?')) { S = fresh(); save(); pursuers.forEach(p => p.el.remove()); pursuers = []; menu.close(); }
+    if (armed($('#resetBtn'), 'Really erase everything? Click again')) { S = fresh(); save(); pursuers.forEach(p => p.el.remove()); pursuers = []; menu.close(); }
   });
   window.addEventListener('beforeunload', save);
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
