@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sneakers O'Toole: Never Take Them Off</title>
+<meta name="theme-color" content="#1b1f3b">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Sneakers O'Toole <small>Never Take Them Off <em>(demo)</em></small></h1>
+  <div class="counter">
+    <div class="big"><span id="steps">0</span> <span class="unit">Steps</span></div>
+    <div class="sub"><span id="sps">0</span>/sec · <span id="sole">0</span> Sole Power</div>
+  </div>
+  <div class="tools">
+    <button id="mute" title="Toggle sound">🔊</button>
+    <button id="menuBtn" title="Save / Export / Import / Reset">⚙️</button>
+  </div>
+</header>
+
+<main>
+  <section class="stage" id="stage" data-scene="0">
+    <div class="scene-label" id="sceneLabel">Scene: Quahog</div>
+    <div class="bubble" id="bubble">♪ La la, my sneakers stay on! ♪</div>
+    <div class="ground"></div>
+    <div id="pursuers"></div>
+    <button class="otoole" id="otoole" aria-label="Hop!">
+      <svg viewBox="0 0 120 170" width="100%" height="100%">
+        <ellipse class="shadow" cx="60" cy="163" rx="34" ry="6" fill="rgba(0,0,0,.25)"/>
+        <g class="body">
+          <rect x="42" y="96" width="14" height="42" rx="6" fill="#33406b"/>
+          <rect x="64" y="96" width="14" height="42" rx="6" fill="#33406b"/>
+          <!-- sneakers -->
+          <path d="M30 156 q0-18 22-18 h6 v18 z" fill="#fff" stroke="#222" stroke-width="3"/>
+          <path d="M62 156 v-18 h6 q22 0 22 18 z" fill="#fff" stroke="#222" stroke-width="3"/>
+          <path d="M32 150 h26 M62 150 h26" stroke="#e63946" stroke-width="5" stroke-linecap="round"/>
+          <rect x="30" y="155" width="28" height="5" rx="2" fill="#222"/>
+          <rect x="62" y="155" width="28" height="5" rx="2" fill="#222"/>
+          <!-- torso + arms -->
+          <rect x="36" y="58" width="48" height="46" rx="14" fill="#2ec4b6" stroke="#1a7f75" stroke-width="3"/>
+          <path d="M38 66 q-16 10 -12 28" stroke="#f4c9a0" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <path d="M82 66 q16 -14 20 -30" stroke="#f4c9a0" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <!-- head -->
+          <circle cx="60" cy="36" r="26" fill="#f4c9a0" stroke="#c99b6d" stroke-width="2"/>
+          <path d="M34 30 q2-24 28-24 q26 0 26 24 q-12-12-28-10 q-16 0-26 10z" fill="#7a4a21"/>
+          <circle cx="50" cy="38" r="3.4" fill="#222"/><circle cx="70" cy="38" r="3.4" fill="#222"/>
+          <path d="M46 47 q14 14 28 0 z" fill="#fff" stroke="#222" stroke-width="2.5" stroke-linejoin="round"/>
+        </g>
+      </svg>
+    </button>
+    <div class="hud">
+      <div class="heat">
+        <div class="heat-label">🔥 Heat <span id="heatNote"></span></div>
+        <div class="heat-bar"><div id="heatFill"></div></div>
+      </div>
+      <div class="hint" id="hint">Click O'Toole to hop. Click the angry men to dodge them!</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <nav class="tabs">
+      <button data-tab="shop" class="on">Shop</button>
+      <button data-tab="tree">Upgrade Tree</button>
+      <button data-tab="cut">Cutaway ✂️</button>
+    </nav>
+    <div id="tab-shop" class="tab on">
+      <div class="buyamt">Buy: <button data-amt="1" class="on">x1</button><button data-amt="10">x10</button></div>
+      <div id="shop"></div>
+    </div>
+    <div id="tab-tree" class="tab"><div id="tree"></div></div>
+    <div id="tab-cut" class="tab">
+      <div class="card">
+        <h3>Cutaway</h3>
+        <p>Cut to a new scene. You lose Steps, buildings and tree upgrades, but keep <b>Sole Power</b>: every point gives <b>+25%</b> to everything, forever.</p>
+        <p>This run you've earned <b id="runTotal">0</b> Steps.</p>
+        <p>Cutaway now for <b id="cutGain">0</b> Sole Power. <small>(needs 100,000 Steps in a run)</small></p>
+        <button id="cutBtn" class="big-btn" disabled>Cut to next scene</button>
+        <hr>
+        <p class="stats">Cutaways: <b id="stCuts">0</b> · Dodges: <b id="stDodge">0</b> · Lifetime Steps: <b id="stLife">0</b></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toasts"></div>
+<dialog id="menu">
+  <h3>Menu</h3>
+  <div class="menu-btns">
+    <button id="saveBtn">Save now</button>
+    <button id="exportBtn">Export save</button>
+    <button id="importBtn">Import save</button>
+    <button id="resetBtn" class="danger">Reset everything</button>
+  </div>
+  <textarea id="saveText" rows="4" placeholder="Export text appears here. Paste a save here, then press Import."></textarea>
+  <div class="menu-btns"><button id="closeMenu">Close</button></div>
+</dialog>
+
+<script src="game.js"></script>
+</body>
+</html>
