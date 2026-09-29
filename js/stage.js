@@ -30,7 +30,7 @@
   St.size = () => ({ W, H, groundY });
   // tall enough to read, short enough to clear the rhythm lane (and its speech bubble) above his head
   let compact = false;
-  St.charH = () => Math.max(90, Math.min(H * 0.52, 420, groundY - (compact ? 62 : 80) - 34));
+  St.charH = () => Math.max(90, Math.min(H * 0.52, 420, groundY - (compact ? 84 : 106) - 30));
 
   /* ---------------- scene painting ---------------- */
   const rng = (seed) => () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };

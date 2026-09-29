@@ -71,11 +71,11 @@
     const c = S().combo;
     if (!auto && [25, 50, 100, 150].includes(c)) { St.float('x' + c + ' COMBO!', p.x, p.top - 10, { size: 36, color: '#ff9f1c', vy: 60, life: 1.4 }); Snd.fx('star'); }
   });
-  C.on('miss', () => { U.miss(); Snd.fx('miss'); St.flinch(); });
+  C.on('miss', (lane, wrong) => { U.miss(wrong); Snd.fx('miss'); St.flinch(); });
   C.on('wordMiss', (k) => U.wordMiss(k));
   C.on('songEnd', (val, q, mine) => {
     Snd.duck(false);
-    if (q < 0 && mine === 0 && S().songs <= 3 && !S().stats.hits) U.banner('HOW TO SING', 'Click O\'Toole on the beat!', ' When a word reaches the yellow ring, click him again to make him sing it.', 7000);
+    if (q < 0 && mine === 0 && S().songs <= 3 && !S().stats.hits) U.banner('HOW TO SING', 'Press the keys on the beat!', ' When a word reaches its keycap on the left, press that key (' + [0, 1, 2, 3].map(U.laneKey).join(' ') + ').', 7000);
   });
   C.on('verse', (val, q, mine) => {
     U.verse(q); Snd.fx('verse', q);
@@ -89,7 +89,7 @@
   });
   // the chase, as in the cartoon: "Take those sneakers off!" "No!" and he hops away until they give up
   function tuxLine(e, id, ms) {
-    const len = Snd.line(id);
+    const len = Snd.say(id, D.LINES[id], id === 'letgo');
     St.enemySay(e, D.LINES[id], ms || Math.max(2400, (len + 0.9) * 1000));
   }
   C.on('spawn', (e) => {
@@ -166,13 +166,24 @@
   function sing(e) {
     if (!running) return;
     Snd.init();
-    const r = C.tap();
-    if (r.res === 'start') startSong(false);
     St.idleReset();
+    if (C.song()) { U.judge('Use ' + [0, 1, 2, 3].map(U.laneKey).join(' '), 'miss'); return; }
+    S().stats.manualClicks++;
+    startSong(false);
     const now = performance.now();
     clickTimes.push(now); while (clickTimes.length && now - clickTimes[0] > 10000) clickTimes.shift();
     if (clickTimes.length >= 100) unlockEgg('carpal', ['Carpal Tunnel', 'A hundred clicks in ten seconds. Please stretch.']);
   }
+  // a lane key (or its on-screen keycap) judges the nearest note; between songs it only flashes the keycap
+  G.lane = (i) => {
+    if (!running) return;
+    Snd.init(); St.idleReset(); U.pressLane(i);
+    if (!C.song()) return;
+    C.tap(i);
+    const now = performance.now();
+    clickTimes.push(now); while (clickTimes.length && now - clickTimes[0] > 10000) clickTimes.shift();
+    if (clickTimes.length >= 100) unlockEgg('carpal', ['Carpal Tunnel', 'A hundred key presses in ten seconds. Please stretch.']);
+  };
   function bindInput() {
     const ot = $('#otoole');
     ot.addEventListener('pointerdown', (e) => {
@@ -238,13 +249,16 @@
         if (typed.endsWith('kazoo')) { typed = ''; U.set.kazoo = true; U.set.voiceMode = 'kazoo'; U.applySet(); unlockEgg('kazoo', ['Kazoo Solo', 'Kazoo voice unlocked. Change it back in Settings.']); U.toast({ title: 'Singing voice: Kazoo' }); }
         if (typed.endsWith('quahog')) { typed = ''; unlockEgg('quahog', ['Local Legend', 'Greetings from Quahog, Rhode Island.']); St.setScene(0); setTimeout(() => St.setScene(S().scene), 8000); }
       }
+      if (U.capturing()) return;
       if (U.modalOpen()) { if (e.key === 'Escape') U.close(); return; }
-      if (e.code === 'Space' || e.key === 'Enter' && e.target === document.body) { e.preventDefault(); if (!e.repeat) sing(e); return; }
-      const k = e.key.toLowerCase();
-      if (k === 'f') { const t = S().enemies.filter(x => !x.flee).sort((a, b) => b.p - a.p)[0]; if (t) C.kick(t.id); }
-      if (k === 'g') C.clickGolden();
-      if (k === 'm') { U.set.muted = !U.set.muted; U.applySet(); }
-      if (k === 'b') { const b = D.BUILDINGS.filter((x, i) => C.bldUnlocked(i)).sort((a, c) => C.cost(a, 1) - C.cost(c, 1))[0]; if (b && C.buy(b.id, 1)) U.render(true); }
+      const k = U.normKey(e.key), K = U.set.keys;
+      for (let i = 0; i < 4; i++) if (k === K['lane' + i]) { e.preventDefault(); if (!e.repeat) G.lane(i); return; }
+      if (k === K.start) { e.preventDefault(); if (!e.repeat) sing(e); return; }
+      if (k === K.dodge) { const t = S().enemies.filter(x => !x.flee && !x.dead).sort((a, b) => b.p - a.p)[0]; if (t) C.kick(t.id); }
+      if (k === K.golden) C.clickGolden();
+      if (k === K.mute) { U.set.muted = !U.set.muted; U.applySet(); }
+      if (k === K.buy) { const b = D.BUILDINGS.filter((x, i) => C.bldUnlocked(i)).sort((a, c) => C.cost(a, 1) - C.cost(c, 1))[0]; if (b && C.buy(b.id, 1)) U.render(true); }
+      if (k === K.wheel) U.wheel();
       if (/^[1-6]$/.test(k)) U.tab(['shop', 'tree', 'sneakers', 'awards', 'cut', 'stats'][+k - 1]);
     });
     root.addEventListener('egg', (e) => { if (e.detail === 'silence') unlockEgg('silence', ['Sound of Silence', 'Every slider at zero. Peaceful.']); });
@@ -286,7 +300,7 @@
     Snd.init().then(() => Snd.startMusic());
     St.walkIn();
     if (offlineInfo) setTimeout(() => U.welcome(offlineInfo), 900);
-    else if (S().stats.manualClicks === 0) setTimeout(() => U.banner('HOW TO PLAY', 'Click O\'Toole to start his song!', ' Then click him again each time a word reaches the yellow ring. On-beat words earn Steps.', 8000), 1200);
+    else if (S().stats.manualClicks === 0) setTimeout(() => U.banner('HOW TO PLAY', 'Click O\'Toole to start his song!', ' Then press ' + [0, 1, 2, 3].map(U.laneKey).join(' ') + ' as each word reaches its key. On-beat words earn Steps.', 8000), 1200);
     if (new Date().getHours() === 3) unlockEgg('night', ['Night Owl', 'Hopping at 3 AM. Respect.']);
   }
   function boot(hotData) {

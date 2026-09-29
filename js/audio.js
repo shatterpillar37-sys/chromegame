@@ -196,6 +196,34 @@
     return buf.duration;
   };
 
+  // computer-voice fallback for lines with no recording yet
+  S.lineVoice = 'auto';   // 'auto' = recording if present, else device speech; 'speech'; 'off'
+  let speechVoice = null;
+  function pickVoice() {
+    const vs = root.speechSynthesis ? root.speechSynthesis.getVoices() : [];
+    const en = vs.filter(v => /^en/i.test(v.lang));
+    return en.find(v => /male|david|daniel|fred|alex|guy|george|mark/i.test(v.name) && !/female/i.test(v.name)) || en[0] || vs[0] || null;
+  }
+  if (root.speechSynthesis) { try { root.speechSynthesis.onvoiceschanged = () => { speechVoice = pickVoice(); }; } catch (e) {} }
+  let speakUntil = 0;
+  S.say = (id, text, force) => {
+    if (S.lineVoice === 'off') return 0;
+    if (S.lineVoice !== 'speech' && buffers['line_' + id]) return S.line(id, force);
+    const ss = root.speechSynthesis; if (!ss || !text) return 0;
+    const now = performance.now();
+    if (!force && now < speakUntil) return 0;
+    try {
+      ss.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      speechVoice = speechVoice || pickVoice(); if (speechVoice) u.voice = speechVoice;
+      u.pitch = 0.65; u.rate = 1.05; u.volume = Math.min(1, vol.no * vol.master);
+      ss.speak(u);
+      const est = 0.35 + text.length * 0.065;
+      speakUntil = now + est * 1000;
+      return est;
+    } catch (e) { return 0; }
+  };
+
   let lastNo = 0;
   S.no = (force) => {
     if (!ac) return;

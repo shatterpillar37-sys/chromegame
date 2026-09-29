@@ -16,18 +16,53 @@
   /* ---------------- settings ---------------- */
   const SET_KEY = 'sneakersOToole.settings';
   U.set = {
-    master: 0.8, music: 0.3, piano: 0.85, sfx: 0.7, voice: 1, no: 1, voiceMode: 'vocals', offset: 0, tts: false, autoSound: true,
+    master: 0.8, music: 0.3, piano: 0.85, sfx: 0.7, voice: 1, no: 1, voiceMode: 'vocals', lineVoice: 'auto', offset: 0, tts: false, autoSound: true,
     particles: 2, shake: true, floaters: true, bgAnim: true, reduce: false, numFmt: 'short', intro: true, confirmCut: true,
     kazoo: false, rainbow: false, rainbowOn: false, muted: false, tab: 'shop', buyAmt: 1,
   };
   try { Object.assign(U.set, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch (e) {}
   if (U.set.voiceMode === 'piano') U.set.voiceMode = 'vocals';
+  /* ---------------- keybinds ---------------- */
+  const KEY_DEFAULTS = { lane0: 'f', lane1: 'g', lane2: 'h', lane3: 'j', start: ' ', dodge: 'e', golden: 'q', buy: 'b', wheel: 'w', mute: 'm' };
+  const KEY_LABELS = { lane0: 'Note row 1 (top)', lane1: 'Note row 2', lane2: 'Note row 3', lane3: 'Note row 4 (bottom)', start: 'Start the song', dodge: 'Dodge the closest tuxedo man', golden: 'Grab the Golden Sneaker', buy: 'Buy the cheapest building', wheel: 'Open the Wheel', mute: 'Mute' };
+  U.set.keys = Object.assign({}, KEY_DEFAULTS, U.set.keys || {});
+  U.normKey = (k) => k.length === 1 ? k.toLowerCase() : k;
+  const KEY_NAMES = { ' ': 'Space', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Enter: 'Enter', Backspace: 'Bksp' };
+  U.keyText = (k) => KEY_NAMES[k] || (k.length === 1 ? k.toUpperCase() : k);
+  U.keyName = (action) => U.keyText(U.set.keys[action] || '');
+  let capture = null;
+  U.capturing = () => !!capture;
+  function keybindRows() {
+    return Object.keys(KEY_DEFAULTS).map(a => `<div class="set-row"><label>${KEY_LABELS[a]}</label><button class="keybtn" data-act="${a}">${esc(U.keyName(a))}</button></div>`).join('');
+  }
+  function bindKeybinds(el) {
+    const refresh = () => { $$('.keybtn', el).forEach(b => { b.textContent = U.keyName(b.dataset.act); b.classList.remove('wait'); }); U.refreshKeys(); };
+    $$('.keybtn', el).forEach(b => b.onclick = () => {
+      if (capture) capture.cancel();
+      b.textContent = 'Press a key…'; b.classList.add('wait');
+      const onKey = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (e.key !== 'Escape' && !['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key) && !/^[1-6]$/.test(e.key)) {
+          const k = U.normKey(e.key), act = b.dataset.act, prev = U.set.keys[act];
+          const clash = Object.keys(U.set.keys).find(x => x !== act && U.set.keys[x] === k);
+          if (clash) U.set.keys[clash] = prev;   // swap so nothing is left unbound
+          U.set.keys[act] = k; U.saveSet();
+        }
+        stop();
+      };
+      const stop = () => { document.removeEventListener('keydown', onKey, true); capture = null; refresh(); };
+      capture = { cancel: stop };
+      document.addEventListener('keydown', onKey, true);
+    });
+    const r = $('#keysReset', el); if (r) r.onclick = () => { U.set.keys = Object.assign({}, KEY_DEFAULTS); U.saveSet(); refresh(); };
+  }
   try { if (root.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches && localStorage.getItem(SET_KEY) === null) U.set.reduce = true; } catch (e) {}
   U.saveSet = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(U.set)); } catch (e) {} };
   U.applySet = () => {
     const s = U.set, m = s.muted ? 0 : 1;
     Object.assign(Snd.vol, { master: s.master * m, music: s.music, piano: s.piano, sfx: s.sfx, voice: s.voice, no: s.no });
     Snd.offset = (s.offset || 0) / 1000;
+    Snd.lineVoice = s.lineVoice || 'auto';
     Snd.voice = s.voiceMode; Snd.tts = s.tts; Snd.applyVolumes();
     Object.assign(St.q, { particles: +s.particles, shake: s.shake, floaters: s.floaters, bgAnim: s.bgAnim, reduce: s.reduce });
     C.numFmt = s.numFmt;
@@ -95,7 +130,7 @@
     hideTip();
     return el;
   };
-  U.close = () => { const ov = $('#overlay'); if (ov.hidden) return; ov.hidden = true; ov.innerHTML = ''; const f = onCloseModal; onCloseModal = null; if (f) f(); };
+  U.close = () => { if (capture) capture.cancel(); const ov = $('#overlay'); if (ov.hidden) return; ov.hidden = true; ov.innerHTML = ''; const f = onCloseModal; onCloseModal = null; if (f) f(); };
   U.modalOpen = () => !$('#overlay').hidden;
   // two-click confirmation (browser confirm() dialogs are unavailable in some viewers)
   U.armed = (btn, msg) => {
@@ -568,51 +603,61 @@
     gl: `<h5>Golden Laces</h5><p>Dropped by bosses. Spend them in the Golden Lace Locker (Cutaway tab).</p>`,
   })[id];
   U.tips.wheel = () => { const w = S().wheel; return `<h5>Wheel of Laces</h5><p>${w.charges ? `<b>${w.charges}</b> free spin${w.charges > 1 ? 's' : ''} ready!` : 'Next free spin in <b>' + C.time((w.next - Date.now()) / 1000) + '</b>'}</p><p>Recharges every ${Math.round(C.wheelPeriod() / 60000)} minutes, even while you're away.</p>`; };
-  U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole to play the piano. Then click again each time a word reaches the ring: he sings it and you earn Steps.</p><p>Perfect hits earn x1.5. Misses break your combo. Hit all eleven for a Perfect Verse.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
+  U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole (or press ${U.keyName('start')}) to play the piano. Each word slides along one of four rows: press that row's key (${[0, 1, 2, 3].map(U.laneKey).join(' ')}) as it reaches the ring and he sings it.</p><p>Perfect hits earn x1.5. Misses break your combo. Hit all eleven for a Perfect Verse.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
   U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man comes to take the sneakers. Click him and O'Toole jumps out of reach. Dodge enough and he gives up.</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
   U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man who gives up fills a pip. When it's full, a boss shows up. Wear him out before his timer runs out for Golden Laces!</p>`;
   U.tips.tablock = (id) => ({ tree: `<h5>Lace Tree</h5><p>Unlocks after your first Cutaway.</p>`, sneakers: `<h5>Sneakers</h5><p>Unlocks when you get your first Shoebox. Tuxedo men sometimes drop them.</p>`, cut: `<h5>Cutaway</h5><p>Unlocks as you approach ${f(C.SP_DIV)} lifetime Steps.</p>` })[id];
 
   /* ---------------- HUD on the stage ---------------- */
+  const LANE_COL = ['#ff4d6d', '#ffd23f', '#3ddc97', '#4cc9f0'];
+  U.laneKey = (i) => U.keyName('lane' + i);
   function buildHud() {
-    $('#lyrics').innerHTML = `<div class="lane-line"></div><div class="lane-ring"><i></i></div>
-      ${D.PHRASE.map((p, i) => `<div class="note ${i % 2 ? 'n-dn' : 'n-up'}" data-i="${i}"><i class="dot"></i><span class="lbl">${esc(p.w)}</span></div>`).join('')}
+    $('#lyrics').innerHTML = `${[0, 1, 2, 3].map(r => `<div class="lrow" style="--lc:${LANE_COL[r]};--r:${r}"><button class="kcap" data-lane="${r}" aria-label="Lane ${r + 1}"></button></div>`).join('')}
+      ${D.PHRASE.map((p, i) => `<div class="note" data-i="${i}"><span class="lbl">${esc(p.w)}</span></div>`).join('')}
       <div class="lane-idle">Click O'Toole to start the song</div><div class="judge"></div>`;
+    U.refreshKeys();
     $('.combo-flame').innerHTML = A.icon('combo');
     $('#hud .meter.heat').dataset.tip = 'heat';
     $('#hud .meter.bossm').dataset.tip = 'bossmeter';
-    $('#lyrics').dataset.tip = 'lane';
+    $$('#lyrics .kcap').forEach(b => b.addEventListener('pointerdown', (e) => { e.preventDefault(); root.Game && root.Game.lane(+b.dataset.lane); }));
   }
-  // the rhythm lane: word notes slide left and reach the ring on their beat
-  const RING_X = 58;
-  let laneNotes = null, laneW = 0, playing = false;
+  U.refreshKeys = () => { $$('#lyrics .kcap').forEach((b, i) => { b.textContent = U.laneKey(i); }); };
+  // the rhythm lane: word notes slide left along their key's row and reach the ring on their beat
+  const RING_X = 44;
+  const PREVIEW = [0, 2, 1, 3, 2, 0, 3, 1, 2, 0, 3];
+  let laneNotes = null, laneW = 0, playing = false, laneSig = '';
   U.laneFrame = () => {
     const lane = $('#lyrics');
     if (!laneNotes) laneNotes = $$('.note', lane);
     laneW = lane.clientWidth || laneW;
+    const rowH = (lane.clientHeight - 8) / 4;
     const pps = Math.max(200, laneW * 0.34);
-    const song = C.song(), t = song ? C.songTime() : -0.55;
+    const song = C.song(), t = song ? C.songTime() : -0.7;
+    const lanes = song ? song.lanes : PREVIEW;
     if (!!song !== playing) { playing = !!song; lane.classList.toggle('playing', playing); }
-    let near = false;
+    const sig = lanes.join('');
+    if (sig !== laneSig) { laneSig = sig; laneNotes.forEach((el, i) => { el.style.setProperty('--lc', LANE_COL[lanes[i]]); el.dataset.lane = lanes[i]; }); }
+    const near = [false, false, false, false];
     laneNotes.forEach((el, i) => {
-      const p = D.PHRASE[i], x = RING_X + (p.t - t) * pps;
-      el.style.transform = `translateX(${x.toFixed(1)}px)`;
-      el.style.opacity = x < -30 || x > laneW + 30 ? 0 : 1;
-      if (song && Math.abs(p.t - t) < 0.05) near = true;
+      const p = D.PHRASE[i], x = RING_X + (p.t - t) * pps, y = 4 + rowH * (lanes[i] + 0.5);
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      el.style.opacity = x < -60 || x > laneW + 30 ? 0 : 1;
+      if (song && !song.hits[i] && Math.abs(p.t - t) < 0.09) near[lanes[i]] = true;
     });
-    lane.classList.toggle('beat', near);
+    $$('.kcap', lane).forEach((b, r) => b.classList.toggle('near', near[r]));
   };
   U.songStart = () => { (laneNotes || $$('#lyrics .note')).forEach(el => el.classList.remove('perfect', 'good', 'missed', 'auto')); };
   U.judge = (txt, cls) => {
     const j = $('#lyrics .judge'); j.textContent = txt; j.className = 'judge ' + cls; void j.offsetWidth; j.classList.add('on');
   };
+  U.pressLane = (lane) => { const b = $$('#lyrics .kcap')[lane]; if (b) { b.classList.remove('press'); void b.offsetWidth; b.classList.add('press'); } };
   U.word = (i, crit, grade) => {
     const n = $(`#lyrics .note[data-i="${i}"]`); if (n) n.classList.add(grade);
     if (grade !== 'auto') U.judge(crit ? 'CRIT!' : grade === 'perfect' ? 'PERFECT' : 'GOOD', crit ? 'crit' : grade);
     const b = $('#bubble'); b.querySelector('span').textContent = D.PHRASE[i].w + (i === D.PHRASE.length - 1 ? '!' : '');
     b.classList.toggle('crit', !!crit); b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
   };
-  U.miss = () => { U.judge('MISS', 'miss'); const l = $('#lyrics'); l.classList.remove('shake'); void l.offsetWidth; l.classList.add('shake'); };
+  U.miss = (wrong) => { U.judge(wrong ? 'WRONG KEY' : 'MISS', 'miss'); const l = $('#lyrics'); l.classList.remove('shake'); void l.offsetWidth; l.classList.add('shake'); };
   U.wordMiss = (i) => { const n = $(`#lyrics .note[data-i="${i}"]`); if (n) n.classList.add('missed'); };
   U.verse = (q) => {
     const l = $('#lyrics'); l.classList.remove('done', 'perfect'); void l.offsetWidth; l.classList.add(q === 2 ? 'perfect' : 'done');
@@ -676,51 +721,101 @@
   /* ---------------- wheel ---------------- */
   U.wheel = () => {
     const s = S();
-    const tot = D.WHEEL.reduce((a, x) => a + x.w, 0);
-    let a0 = -Math.PI / 2, segs = '', labels = '';
+    const W_ICON = { prod10: 'steps', box1: 'box', frenzy: 'gold', shards: 'shard', box3: 'box', prod60: 'clock', gl: 'gl', jackpot: 'star' };
+    const W_DESC = { prod10: '10 minutes of production, right now.', box1: 'One Mystery Shoebox.', frenzy: 'Production x7 for 60 seconds.', shards: '40 Lace Shards for starring up sneakers.', box3: 'Three Mystery Shoeboxes.', prod60: 'A full hour of production, right now.', gl: 'One Golden Lace for the Locker.', jackpot: '10 Shoeboxes and 2 Golden Laces!' };
+    const tot = D.WHEEL.reduce((a, x) => a + x.w, 0), R = 153, C0 = 170;
+    const pt = (a, r) => `${(C0 + r * Math.cos(a)).toFixed(2)} ${(C0 + r * Math.sin(a)).toFixed(2)}`;
+    let a0 = -Math.PI / 2, defs = '', segs = '', decor = '', pegs = '';
     const ang = [];
     D.WHEEL.forEach((w, i) => {
-      const a1 = a0 + w.w / tot * Math.PI * 2, r = 140;
-      const large = a1 - a0 > Math.PI ? 1 : 0;
-      segs += `<path d="M150 150 L${150 + r * Math.cos(a0)} ${150 + r * Math.sin(a0)} A${r} ${r} 0 ${large} 1 ${150 + r * Math.cos(a1)} ${150 + r * Math.sin(a1)} Z" fill="${w.color}" stroke="#1b1330" stroke-width="3"/>`;
-      const am = (a0 + a1) / 2, deg = am * 180 / Math.PI;
-      labels += `<text transform="translate(${150 + 88 * Math.cos(am)} ${150 + 88 * Math.sin(am)}) rotate(${deg})" text-anchor="middle" dominant-baseline="middle" font-family="Lilita One, sans-serif" font-size="${w.w < 5 ? 10 : 12}" fill="#1b1330">${esc(w.name)}</text>`;
+      const a1 = a0 + w.w / tot * Math.PI * 2, large = a1 - a0 > Math.PI ? 1 : 0, am = (a0 + a1) / 2, span = a1 - a0;
+      defs += `<radialGradient id="wg${i}" cx="${C0}" cy="${C0}" r="${R}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${A.shade(w.color, 0.45)}"/><stop offset=".55" stop-color="${w.color}"/><stop offset="1" stop-color="${A.shade(w.color, -0.3)}"/></radialGradient>`;
+      segs += `<path class="seg" data-i="${i}" d="M${C0} ${C0} L${pt(a0, R)} A${R} ${R} 0 ${large} 1 ${pt(a1, R)} Z" fill="url(#wg${i})" stroke="#1b1330" stroke-width="3"/>`;
+      segs += `<path d="M${pt(a0 + 0.02, R - 8)} A${R - 8} ${R - 8} 0 ${large} 1 ${pt(a1 - 0.02, R - 8)}" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3"/>`;
+      const deg = am * 180 / Math.PI, iconR = span > 0.5 ? 126 : 130, sz = span > 0.5 ? 34 : span > 0.35 ? 26 : 20;
+      decor += `<g transform="translate(${pt(am, iconR).replace(' ', ' ')}) rotate(${deg + 90})"><g transform="translate(${-sz / 2} ${-sz / 2}) scale(${sz / 64})">${A.I[W_ICON[w.id]] || A.I.star}</g></g>`;
+      const flip = Math.cos(am) < -0.01 ? 180 : 0;
+      decor += `<text transform="translate(${pt(am, 92)}) rotate(${deg + flip})" text-anchor="middle" dominant-baseline="middle" font-family="Lilita One, sans-serif" font-size="${span > 0.5 ? 13 : 10}" fill="#fff" stroke="#1b1330" stroke-width="3" paint-order="stroke">${esc(w.name.replace(' of Steps', ''))}</text>`;
+      pegs += `<circle cx="${pt(a0, R - 2).split(' ')[0]}" cy="${pt(a0, R - 2).split(' ')[1]}" r="5" fill="#fff4c2" stroke="#1b1330" stroke-width="2.5"/>`;
       ang.push([a0, a1]); a0 = a1;
     });
-    const el = U.modal(`<div class="modal wheel-wrap"><button class="x">✕</button><h2>Wheel of Laces</h2>
-      <div class="wheel"><svg class="pointer" viewBox="0 0 40 50"><path d="M20 48 L4 8 Q20 -4 36 8 Z" fill="#ff4d6d" stroke="#1b1330" stroke-width="4"/></svg>
-      <svg class="disc" id="disc" viewBox="0 0 300 300"><circle cx="150" cy="150" r="146" fill="#1b1330"/>${segs}${labels}<circle cx="150" cy="150" r="24" fill="#fff" stroke="#1b1330" stroke-width="4"/><circle cx="150" cy="150" r="8" fill="#1b1330"/></svg></div>
+    let bulbs = '';
+    for (let k = 0; k < 28; k++) { const a = k / 28 * Math.PI * 2; bulbs += `<circle class="bulb b${k % 2}" cx="${pt(a, 162).split(' ')[0]}" cy="${pt(a, 162).split(' ')[1]}" r="5.5"/>`; }
+    const legend = D.WHEEL.map((w, i) => `<div class="wl" data-i="${i}"><span class="wli" style="--c:${w.color}">${A.icon(W_ICON[w.id])}</span><b>${esc(w.name)}</b><small>${Math.round(w.w / tot * 100)}%</small></div>`).join('');
+    const el = U.modal(`<div class="modal wheel-modal"><button class="x">✕</button>
+      <div class="wheel-rays"></div>
+      <h2 class="wheel-title">Wheel of Laces</h2>
+      <div class="wheel" id="wheelBox">
+        <svg class="wframe" viewBox="0 0 340 340">
+          <defs><linearGradient id="rimG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff1a8"/><stop offset=".45" stop-color="#ffd23f"/><stop offset="1" stop-color="#b8860b"/></linearGradient></defs>
+          <circle cx="170" cy="170" r="168" fill="#1b1330"/><circle cx="170" cy="170" r="162" fill="none" stroke="url(#rimG)" stroke-width="16"/>
+          <circle cx="170" cy="170" r="169" fill="none" stroke="#1b1330" stroke-width="3"/><circle cx="170" cy="170" r="154" fill="none" stroke="#1b1330" stroke-width="3"/>
+          <g class="bulbs">${bulbs}</g>
+        </svg>
+        <svg class="disc" id="disc" viewBox="0 0 340 340"><defs>${defs}</defs>${segs}${decor}${pegs}<g class="winglow" id="winGlow"></g></svg>
+        <svg class="wshine" viewBox="0 0 340 340"><ellipse cx="130" cy="95" rx="95" ry="55" fill="#fff" opacity=".13" transform="rotate(-30 130 95)"/></svg>
+        <svg class="pointer" id="wptr" viewBox="0 0 60 80"><path d="M30 76 L8 22 Q8 4 30 4 Q52 4 52 22 Z" fill="#ff4d6d" stroke="#1b1330" stroke-width="5"/><circle cx="30" cy="22" r="9" fill="#fff" stroke="#1b1330" stroke-width="3"/><circle cx="27" cy="19" r="3" fill="#fff" opacity=".9"/></svg>
+        <button class="hub" id="spin" ${s.wheel.charges < 1 ? 'disabled' : ''}><span class="hub-snk">${A.logoSneaker()}</span><b>SPIN</b><small id="wcharges"></small></button>
+      </div>
       <div class="wheel-res" id="wres"></div>
-      <button class="btn big gold" id="spin" ${s.wheel.charges < 1 ? 'disabled' : ''}>${s.wheel.charges ? `Spin! (${s.wheel.charges})` : 'No spins'}</button>
-      <p class="muted" id="wnext"></p></div>`);
-    const disc = $('#disc', el), res = $('#wres', el), btn = $('#spin', el), ptr = $('.pointer', el);
-    let rot = 0, spinning = false;
-    const upd = () => { const w = S().wheel; $('#wnext', el).textContent = w.charges >= C.wheelCap() ? 'Charges full' : 'Next spin in ' + C.time((w.next - Date.now()) / 1000); };
+      <p class="muted wnext" id="wnext"></p>
+      <div class="wlegend">${legend}</div></div>`);
+    const disc = $('#disc', el), res = $('#wres', el), btn = $('#spin', el), ptr = $('#wptr', el), box = $('#wheelBox', el);
+    let rot = 0, spinning = false, chase = 0;
+    const bulbsEl = $$('.bulb', el);
+    const chaser = setInterval(() => { chase++; bulbsEl.forEach((b, k) => b.classList.toggle('lit', spinning ? (k + chase) % 3 === 0 : (k + chase) % 2 === 0)); }, 140);
+    const upd = () => {
+      const w = S().wheel;
+      $('#wnext', el).textContent = w.charges >= C.wheelCap() ? 'Charges full: spin away!' : 'Next free spin in ' + C.time((w.next - Date.now()) / 1000);
+      $('#wcharges', el).textContent = w.charges ? w.charges + ' spin' + (w.charges > 1 ? 's' : '') : 'no spins';
+      if (!spinning) btn.disabled = w.charges < 1;
+    };
     upd(); const iv = setInterval(upd, 1000);
-    onCloseModal = () => clearInterval(iv);
+    onCloseModal = () => { clearInterval(iv); clearInterval(chaser); };
     btn.onclick = () => {
       if (spinning) return;
-      const i = C.spinWheel(); if (i === null) return;
-      spinning = true; btn.disabled = true; res.textContent = '';
+      const i = C.spinWheel(); if (i === null) { Snd.fx('cant'); return; }
+      spinning = true; btn.disabled = true; res.innerHTML = ''; box.classList.remove('won', 'jackpot'); $('#winGlow', el).innerHTML = '';
+      $$('.wl', el).forEach(x => x.classList.remove('on'));
+      Snd.fx('whooshBig');
       const [a, b] = ang[i];
-      const target = (a + (b - a) * (0.2 + Math.random() * 0.6)) * 180 / Math.PI + 90; // degrees from pointer
-      const final = rot + 360 * 6 + ((360 - target - rot % 360) % 360 + 360) % 360;
-      const start = rot, dur = 4800, t0 = performance.now();
-      let lastSeg = -1;
+      const target = (a + (b - a) * (0.25 + Math.random() * 0.5)) * 180 / Math.PI + 90;
+      const final = rot + 360 * 7 + ((360 - target - rot % 360) % 360 + 360) % 360;
+      const start = rot, dur = 5600, t0 = performance.now(), over = 5 + Math.random() * 4;
+      let lastSeg = -1, lastT = t0;
       const bounds = ang.map(([x]) => ((x * 180 / Math.PI + 90) % 360 + 360) % 360);
       const step = (now) => {
-        const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 4);
-        rot = start + (final - start) * e;
+        const k = Math.min(1, (now - t0) / dur);
+        // fast start, long tense slow-down, then a tiny settle back past the peg
+        const e = k < 0.92 ? 1 - Math.pow(1 - k / 0.92, 3.6) : 1;
+        const back = k < 0.92 ? 0 : Math.sin((k - 0.92) / 0.08 * Math.PI) * -over * (1 - (k - 0.92) / 0.08);
+        const prev = rot;
+        rot = start + (final + over - start) * e - (k >= 0.92 ? over : 0) * Math.min(1, (k - 0.92) / 0.08) + back * 0.3;
+        const speed = Math.abs(rot - prev) / Math.max(1, now - lastT); lastT = now;
         disc.style.transform = `rotate(${rot}deg)`;
+        disc.style.filter = speed > 0.6 ? `blur(${Math.min(2.5, (speed - 0.6) * 1.5).toFixed(2)}px)` : '';
         const pointerAt = ((360 - rot % 360) % 360 + 360) % 360;
         let seg = 0; bounds.forEach((bd, j) => { if (pointerAt >= bd) seg = j; });
-        if (seg !== lastSeg) { lastSeg = seg; Snd.fx('tick'); ptr.classList.remove('tick'); void ptr.offsetWidth; ptr.classList.add('tick'); }
+        if (seg !== lastSeg) {
+          lastSeg = seg; Snd.fx('tick');
+          ptr.classList.remove('tick'); void ptr.getBoundingClientRect(); ptr.classList.add('tick');
+          $$('.wl', el).forEach(x => x.classList.toggle('peek', +x.dataset.i === seg));
+        }
         if (k < 1) requestAnimationFrame(step);
         else {
-          spinning = false; C.applyWheel(i);
-          const w = D.WHEEL[i]; res.textContent = w.name + '!';
-          Snd.fx(w.id === 'jackpot' ? 'jackpot' : 'golden'); U.confetti(w.id === 'jackpot' ? 160 : 50);
-          const c = S().wheel.charges; btn.disabled = c < 1; btn.textContent = c ? `Spin again! (${c})` : 'No spins';
+          spinning = false; disc.style.filter = '';
+          rot = final;
+          disc.style.transform = `rotate(${rot}deg)`;
+          C.applyWheel(i);
+          const w = D.WHEEL[i], jack = w.id === 'jackpot';
+          const [ga, gb] = ang[i], lg = gb - ga > Math.PI ? 1 : 0;
+          $('#winGlow', el).innerHTML = `<path d="M${C0} ${C0} L${pt(ga, R)} A${R} ${R} 0 ${lg} 1 ${pt(gb, R)} Z" fill="#fff" stroke="#fff" stroke-width="6"/>`;
+          box.classList.add('won'); if (jack) box.classList.add('jackpot');
+          $$('.wl', el).forEach(x => { x.classList.remove('peek'); x.classList.toggle('on', +x.dataset.i === i); });
+          res.innerHTML = `<div class="wprize" style="--c:${w.color}"><span class="wpi">${A.icon(W_ICON[w.id])}</span><div><b>${esc(w.name)}!</b><small>${esc(W_DESC[w.id])}</small></div></div>`;
+          Snd.fx(jack ? 'jackpot' : 'golden'); Snd.fx('ach');
+          U.confetti(jack ? 200 : 70);
+          upd();
         }
       };
       requestAnimationFrame(step);
@@ -736,13 +831,13 @@
     const voices = [['vocals', 'O\'Toole (original vocals)'], ['box', 'Music box'], ['chip', 'Chiptune'], ['choir', 'Choir']].concat(s.kazoo ? [['kazoo', 'Kazoo']] : []);
     const el = U.modal(`<div class="modal"><button class="x">✕</button><h2>Settings</h2>
       <div class="set-group"><h3>Sound</h3>${slider('master', 'Master')}${slider('piano', 'Piano')}${slider('voice', 'O\'Toole\'s singing')}${slider('music', 'Background music')}${slider('sfx', 'Effects')}${slider('no', '"No!" voice')}
-        ${sel('voiceMode', 'Singing voice', voices)}${tog('autoSound', 'Hear the Auto-Singer')}</div>
+        ${sel('voiceMode', 'Singing voice', voices)}${tog('autoSound', 'Hear the Auto-Singer')}${sel('lineVoice', 'Tuxedo men\'s voices', [['auto', 'Recordings (computer voice if missing)'], ['speech', 'Computer voice'], ['off', 'Off']])}</div>
       <div class="set-group"><h3>Rhythm</h3><div class="set-row"><label for="set-offset">Timing offset <small id="offVal">${s.offset || 0} ms · raise it if your hits register as late</small></label><input type="range" id="set-offset" min="-200" max="200" step="5" value="${s.offset || 0}"></div>${tog('tts', 'Speak each word', 'Uses your device\'s text-to-speech')}</div>
       <div class="set-group"><h3>Visuals</h3>${sel('particles', 'Particles', [[0, 'Off'], [1, 'Low'], [2, 'High']])}${tog('shake', 'Screen shake')}${tog('floaters', 'Floating numbers')}${tog('bgAnim', 'Animated backgrounds')}${tog('reduce', 'Reduce motion')}${s.rainbow ? tog('rainbowOn', 'Rainbow O\'Toole', 'Secret unlocked!') : ''}</div>
       <div class="set-group"><h3>Game</h3>${sel('numFmt', 'Numbers', [['short', '1.23 M'], ['long', '1.23 million'], ['sci', '1.23e6'], ['eng', '1.23e6 (engineering)']])}${tog('confirmCut', 'Confirm before a Cutaway')}${tog('intro', 'Play the intro on launch')}</div>
       <div class="set-group"><h3>Save</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn sm mint" id="sSave">Save now</button><button class="btn sm sky" id="sExport">Export</button><button class="btn sm" id="sImport">Import</button><button class="btn sm lace" id="sReset">Erase everything</button><button class="btn sm ghost" id="sIntro">Replay intro</button></div>
         <textarea id="sText" placeholder="Exported save text appears here. To import, paste a save here and press Import."></textarea></div>
-      <div class="set-group"><h3>Keys</h3><p class="muted" style="margin:0">Space: start the song / sing on the beat · F: dodge the closest tuxedo man · G: grab the Golden Sneaker · 1-6: tabs · B: buy the cheapest building · M: mute · Esc: close</p></div>
+      <div class="set-group"><h3>Keys</h3>${keybindRows()}<div style="margin-top:8px;display:flex;gap:8px;align-items:center"><button class="btn sm ghost" id="keysReset">Reset keys</button><small class="muted">Click a key, then press the new one. 1-6 switch tabs.</small></div></div>
       <p class="muted" style="font-size:.8rem">Fan-made, non-commercial. Sneakers O'Toole is from <i>Family Guy</i> (20th Television / Fox).</p></div>`);
     $$('input[type=range]', el).forEach(r => r.oninput = () => {
       s[r.dataset.k] = +r.value; U.applySet();
@@ -751,6 +846,7 @@
     const off = $('#set-offset', el); off.oninput = () => { s.offset = +off.value; $('#offVal', el).textContent = s.offset + ' ms · raise it if your hits register as late'; U.applySet(); };
     $$('[data-t]', el).forEach(b => b.onclick = () => { s[b.dataset.t] = !s[b.dataset.t]; b.classList.toggle('on', s[b.dataset.t]); U.applySet(); Snd.fx('ui'); });
     $$('select[data-s]', el).forEach(x => x.onchange = () => { s[x.dataset.s] = x.dataset.s === 'particles' ? +x.value : x.value; U.applySet(); U.render(true); });
+    bindKeybinds(el);
     $('#sSave', el).onclick = () => { root.Game.save(); U.toast({ title: 'Saved' }); };
     $('#sExport', el).onclick = () => {
       const txt = root.Game.exportSave(); const ta = $('#sText', el); ta.value = txt; ta.select();

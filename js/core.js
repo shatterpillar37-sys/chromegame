@@ -245,12 +245,19 @@
      Clicking O'Toole starts the song. While it plays, a click within a word's
      window sings that word (Perfect or Good) and earns Steps; any other click is a miss. */
   C.clock = () => S.time;            // replaced by the audio clock in the browser
+  C.LANES = 4;
   let song = null;
   C.song = () => song;
   C.songTime = () => song ? C.clock() - song.t0 : -1;
   C.startSong = (t0, auto) => {
     if (song) return null;
-    song = { t0: t0 === undefined ? C.clock() : t0, hits: new Array(D.PHRASE.length).fill(null), planned: {}, auto: !!auto };
+    // every word gets a random lane (F G H J by default); close words never share one
+    const lanes = [];
+    D.PHRASE.forEach((p, k) => {
+      let l; do { l = Math.floor(R() * C.LANES); } while (k && l === lanes[k - 1] && p.t - D.PHRASE[k - 1].t < 0.3);
+      lanes.push(l);
+    });
+    song = { t0: t0 === undefined ? C.clock() : t0, hits: new Array(D.PHRASE.length).fill(null), planned: {}, auto: !!auto, lanes };
     S.songIdle = 0;
     C.emit('songStart', song);
     return song;
@@ -264,25 +271,26 @@
     S.stats.clicks++; S.stats.stepsClicked += val;
     return { val, crit };
   }
-  // a click on O'Toole: starts the song, or tries to hit the next word
-  C.tap = (now) => {
+  // a key press on a lane (or, with no lane, any hit): starts nothing by itself, judges the nearest word
+  C.tap = (lane) => {
     const m = C.mods();
     S.stats.manualClicks++;
     S.lastClick = S.time;
     if (!song) return { res: 'start' };
     const t = C.songTime();
-    let best = -1, bd = Infinity;
+    let best = -1, bd = Infinity, wrong = false;
     D.PHRASE.forEach((p, k) => {
-      const h = song.hits[k];
-      if (h && h !== 'planned') return;
+      if (song.hits[k]) return;
       const d = Math.abs(t - p.t);
+      if (d > D.WIN_GOOD) return;
+      if (lane !== undefined && song.lanes[k] !== lane) { wrong = true; return; }
       if (d < bd) { bd = d; best = k; }
     });
-    if (best < 0 || bd > D.WIN_GOOD) {
+    if (best < 0) {
       if (S.combo >= 10) C.emit('comboEnd', S.combo);
       S.combo = 0; S.stats.misses++;
-      C.emit('miss', best, t);
-      return { res: 'miss' };
+      C.emit('miss', lane, wrong);
+      return { res: 'miss', wrong };
     }
     const grade = bd <= D.WIN_PERFECT ? 'perfect' : 'good';
     const voiced = !!song.planned[best];
