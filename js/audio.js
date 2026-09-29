@@ -185,6 +185,7 @@
   // tuxedo men's voice lines (line_hey, line_said, line_letgo); one speaks at a time
   let lineUntil = 0;
   S.hasLine = (id) => !!buffers['line_' + id];
+  S.lineBusy = () => ac ? Math.max(0, lineUntil - ac.currentTime) : 0;
   S.line = (id, force) => {
     if (!ac) return 0;
     const buf = buffers['line_' + id]; if (!buf) return 0;

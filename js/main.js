@@ -88,8 +88,14 @@
     U.bumpBank();
   });
   // the chase, as in the cartoon: "Take those sneakers off!" "No!" and he hops away until they give up
-  function tuxLine(e, id, ms) {
-    const len = Snd.say(id, D.LINES[id], id === 'letgo');
+  function tuxLine(e, id, ms, retry) {
+    // if someone is already talking, wait for them to finish (once) instead of talking over them
+    const busy = Snd.lineBusy();
+    if (busy > 0 && id !== 'letgo' && !retry && Snd.hasLine(id) && U.set.lineVoice !== 'speech') {
+      setTimeout(() => { if (S().enemies.includes(e) && !e.dead) tuxLine(e, id, ms, true); }, busy * 1000 + 150);
+      return;
+    }
+    const len = Snd.say(id, D.LINES[id], id === 'letgo' || retry);
     St.enemySay(e, D.LINES[id], ms || Math.max(2400, (len + 0.9) * 1000));
   }
   C.on('spawn', (e) => {
