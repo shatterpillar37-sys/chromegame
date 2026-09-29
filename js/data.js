@@ -3,28 +3,30 @@
   'use strict';
   const D = {};
 
-  /* ---------------- The phrase ----------------
-     Word timings are onsets in the reference piano clip (A-flat major, ~120 BPM).
-     s/e = slice of the recording played on click (seconds).
-     sing = melody notes (MIDI) for the synth voices, bass/chord = accompaniment. */
+  /* ---------------- The song ----------------
+     All times are seconds on the piano recording's timeline (A-flat major, ~122 BPM).
+     t     = the beat where the word lands (click then for a hit)
+     s/e   = the slice of O'Toole's vocal track that sings the word
+     sing  = melody notes (MIDI) for the synth voices, chord = harmony under the word */
   const AB = [60, 63, 68, 72, 75], DB = [61, 65, 68, 73, 77], EB = [58, 63, 67, 70, 75];
   D.PHRASE = [
-    { w: "I'm",      s: 0.459, e: 0.720, sing: [63],     bass: 44, chord: 'Ab', vowel: 'ai' },
-    { w: 'not',      s: 0.720, e: 0.964, sing: [63],     bass: 0,  chord: 'Ab', vowel: 'o' },
-    { w: 'taking',   s: 0.964, e: 1.454, sing: [65, 68], bass: 39, chord: 'Ab', vowel: 'e' },
-    { w: 'my',       s: 1.454, e: 1.718, sing: [68],     bass: 44, chord: 'Ab', vowel: 'ai' },
-    { w: 'sneakers', s: 1.718, e: 2.220, sing: [72, 70], bass: 0,  chord: 'Ab', vowel: 'i' },
-    { w: 'off',      s: 2.220, e: 2.441, sing: [68],     bass: 0,  chord: 'Ab', vowel: 'o' },
-    { w: 'I',        s: 2.441, e: 2.708, sing: [65],     bass: 37, chord: 'Db', vowel: 'ai' },
-    { w: 'am',       s: 2.708, e: 2.943, sing: [68],     bass: 0,  chord: 'Db', vowel: 'a' },
-    { w: 'Sneakers', s: 2.943, e: 3.419, sing: [70, 67], bass: 39, chord: 'Eb', vowel: 'i' },
-    { w: "O'",       s: 3.419, e: 3.910, sing: [72],     bass: 44, chord: 'Ab', vowel: 'o' },
-    { w: 'Toole',    s: 3.910, e: 4.400, sing: [68],     bass: 44, chord: 'Ab', vowel: 'u' },
+    { w: "I'm",      t: 0.465, s: 0.435, e: 0.680, sing: [58],     chord: 'Ab', vowel: 'ai' },
+    { w: 'not',      t: 0.705, s: 0.680, e: 0.865, sing: [60],     chord: 'Ab', vowel: 'o' },
+    { w: 'taking',   t: 0.940, s: 0.905, e: 1.140, sing: [56, 59], chord: 'Ab', vowel: 'e' },
+    { w: 'my',       t: 1.155, s: 1.140, e: 1.310, sing: [58],     chord: 'Ab', vowel: 'ai' },
+    { w: 'sneakers', t: 1.465, s: 1.310, e: 1.820, sing: [55, 56], chord: 'Ab', vowel: 'i' },
+    { w: 'off',      t: 1.825, s: 1.820, e: 2.175, sing: [51],     chord: 'Ab', vowel: 'o' },
+    { w: 'I',        t: 2.445, s: 2.425, e: 2.560, sing: [56],     chord: 'Db', vowel: 'ai' },
+    { w: 'am',       t: 2.565, s: 2.560, e: 2.820, sing: [56],     chord: 'Db', vowel: 'a' },
+    { w: 'Sneakers', t: 2.935, s: 2.820, e: 3.170, sing: [58, 61], chord: 'Eb', vowel: 'i' },
+    { w: "O'",       t: 3.185, s: 3.170, e: 3.390, sing: [58],     chord: 'Ab', vowel: 'o' },
+    { w: 'Toole',    t: 3.435, s: 3.390, e: 3.935, sing: [56],     chord: 'Ab', vowel: 'u' },
   ];
+  D.SONG_END = 4.3;          // the piano has finished ringing by here
+  D.WIN_PERFECT = 0.075;     // seconds either side of the beat
+  D.WIN_GOOD = 0.15;
   D.CHORDS = { Ab: AB, Db: DB, Eb: EB };
   D.CHORD_BASS = { Ab: 44, Db: 37, Eb: 39 };
-  // gaps between word onsets in the original: used to detect a "Perfect Verse"
-  D.RHYTHM = D.PHRASE.slice(1).map((p, i) => p.s - D.PHRASE[i].s);
 
   /* ---------------- Buildings ---------------- */
   D.BUILDINGS = [
@@ -224,10 +226,10 @@
     T('r1', 'rhythm', 0, -1, 'root', 'Warm Up', 1, 'Clicking x3.', { click: 3 }),
     T('r2', 'rhythm', -1, -2, 'r1', 'Karaoke Night', 2, 'Verse bonus x3.', { verse: 3 }),
     T('r3', 'rhythm', 1, -2, 'r1', 'Crowd Surfing', 3, 'Combo cap +25.', { comboCap: 25 }),
-    T('r4', 'rhythm', 0, -3, 'r1', 'Auto-Singer', 5, 'O\'Toole sings 1 word per second on his own.', { auto: 1 }),
+    T('r4', 'rhythm', 0, -3, 'r1', 'Auto-Singer', 5, 'O\'Toole starts the song himself and sings 25% of the words you miss.', { auto: 1 }),
     T('r5', 'rhythm', -1, -4, 'r4', 'Perfect Pitch', 10, 'Critical click chance +4%.', { crit: 0.04 }),
     T('r6', 'rhythm', 1, -4, 'r4', 'Chorus Line', 20, 'Each click earns 3% of Steps per second.', { clickSps: 0.03 }),
-    T('r7', 'rhythm', 0, -5, 'r4', 'Duet', 40, 'Auto-Singer sings 2 more words per second.', { auto: 2 }),
+    T('r7', 'rhythm', 0, -5, 'r4', 'Duet', 40, 'Auto-Singer catches 50% more of your missed words.', { auto: 2 }),
     T('r8', 'rhythm', -1, -6, 'r7', 'Stage Presence', 90, 'Critical clicks x3 stronger.', { critMult: 3 }),
     T('r9', 'rhythm', 1, -6, 'r7', 'Metronome Heart', 150, 'Combo lasts twice as long between clicks.', { comboWin: 2 }),
     T('r10', 'rhythm', 0, -7, 'r7', 'Unplugged', 400, 'Clicking x10. Verse bonus x5.', { click: 10, verse: 5 }),
@@ -285,7 +287,7 @@
 
   /* ---------------- Challenges ("Special Episodes") ---------------- */
   D.CHALLENGES = [
-    { id: 'silent', name: 'Silent Film',      goal: 1e10, desc: 'Clicking does nothing. Only buildings produce.', reward: 'Auto-Singer +2 words/sec, forever.', fx: { auto: 2 } },
+    { id: 'silent', name: 'Silent Film',      goal: 1e10, desc: 'Singing earns nothing. Only buildings produce.', reward: 'Auto-Singer catches 50% more missed words, forever.', fx: { auto: 2 } },
     { id: 'invasion', name: 'Tux Invasion',   goal: 1e10, desc: 'Heat builds 4x faster and tuxedo men are twice as tough.', reward: 'Kick damage x3, forever.', fx: { kickMult: 3 } },
     { id: 'budget', name: 'Budget Episode',   goal: 1e10, desc: 'Buildings get 30% more expensive each (instead of 15%).', reward: 'Buildings cost 10% less, forever.', fx: { cost: 0.9 } },
     { id: 'monotone', name: 'Monotone',       goal: 1e11, desc: 'No verse bonus, no combo, no crits.', reward: 'Verse bonus x5, forever.', fx: { verse: 5 } },
@@ -324,7 +326,8 @@
     [0, 'Man in bow tie reportedly still chasing a pair of sneakers "for years now."'],
     [0, 'Poll: 9 out of 10 people would also not take them off.'],
     [0, 'Gym teacher proposes "sneakers-on" policy for all of life. Motion passes.'],
-    [0, 'Tip: click along with the rhythm of the song for a Perfect Verse.'],
+    [0, 'Tip: click right as each word reaches the ring. Hit all eleven for a Perfect Verse.'],
+    [0, 'Tip: if hits feel early or late, adjust the timing offset in Settings.'],
     [0, 'Tip: the Golden Sneaker only flies by for a few seconds. Keep your eyes open.'],
     [0, 'Tip: beat a boss before the timer runs out, or he pulls on the laces.'],
   ];

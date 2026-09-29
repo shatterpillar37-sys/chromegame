@@ -16,16 +16,18 @@
   /* ---------------- settings ---------------- */
   const SET_KEY = 'sneakersOToole.settings';
   U.set = {
-    master: 0.8, music: 0.35, sfx: 0.7, voice: 0.9, no: 1, voiceMode: 'piano', tts: false, autoSound: true,
+    master: 0.8, music: 0.3, piano: 0.85, sfx: 0.7, voice: 1, no: 1, voiceMode: 'vocals', offset: 0, tts: false, autoSound: true,
     particles: 2, shake: true, floaters: true, bgAnim: true, reduce: false, numFmt: 'short', intro: true, confirmCut: true,
     kazoo: false, rainbow: false, rainbowOn: false, muted: false, tab: 'shop', buyAmt: 1,
   };
   try { Object.assign(U.set, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch (e) {}
+  if (U.set.voiceMode === 'piano') U.set.voiceMode = 'vocals';
   try { if (root.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches && localStorage.getItem(SET_KEY) === null) U.set.reduce = true; } catch (e) {}
   U.saveSet = () => { try { localStorage.setItem(SET_KEY, JSON.stringify(U.set)); } catch (e) {} };
   U.applySet = () => {
     const s = U.set, m = s.muted ? 0 : 1;
-    Object.assign(Snd.vol, { master: s.master * m, music: s.music, sfx: s.sfx, voice: s.voice, no: s.no });
+    Object.assign(Snd.vol, { master: s.master * m, music: s.music, piano: s.piano, sfx: s.sfx, voice: s.voice, no: s.no });
+    Snd.offset = (s.offset || 0) / 1000;
     Snd.voice = s.voiceMode; Snd.tts = s.tts; Snd.applyVolumes();
     Object.assign(St.q, { particles: +s.particles, shake: s.shake, floaters: s.floaters, bgAnim: s.bgAnim, reduce: s.reduce });
     C.numFmt = s.numFmt;
@@ -534,7 +536,7 @@
     const rows = [
       ['Steps this run', f(s.runSteps)], ['Lifetime Steps', f(s.allSteps)], ['Steps per second', f(C.sps(), 1)], ['Best Steps per second', f(st.bestSps, 1)],
       ['Steps per click', f(C.clickBase(m) * C.comboMult(), 1)], ['Total production multiplier', 'x' + f(m.global, 2)],
-      ['Clicks', f(st.manualClicks)], ['Words sung (incl. auto)', f(st.clicks)], ['Verses sung', f(st.verses)], ['Perfect Verses', f(st.perfect)], ['Best verse', f(st.bestVerse)], ['Best combo', f(st.bestCombo)], ['Critical clicks', f(st.crits)],
+      ['Clicks', f(st.manualClicks)], ['Songs played', f(s.songs || 0)], ['Words hit on the beat', f(st.hits)], ['Perfect hits', f(st.perfectHits)], ['Misses', f(st.misses)], ['Accuracy', Math.round(C.accuracy() * 100) + '%'], ['Words sung (incl. auto)', f(st.clicks)], ['Verses sung', f(st.verses)], ['Perfect Verses', f(st.perfect)], ['Best verse', f(st.bestVerse)], ['Best combo', f(st.bestCombo)], ['Critical clicks', f(st.crits)],
       ['Buildings owned', f(C.totalBuildings())], ['Upgrades bought (all time)', f(st.upgrades)],
       ['Tuxedo men defeated', f(st.enemies)], ['Bosses defeated', f(st.bosses)], ['Times tugged', f(st.tugs)], ['Kick damage', f(m.kickDmg, 1)], ['Luck', '+' + Math.round(m.luck * 100) + '%'], ['Crit chance', (m.crit * (1 + m.luck * 0.5) * 100).toFixed(1) + '%'],
       ['Golden Sneakers clicked', f(st.golden)], ['Shoeboxes opened', f(st.boxesOpened)], ['Shiny sneakers found', f(st.shinies)], ['Wheel spins', f(st.wheelSpins)], ['Random events', f(st.events)],
@@ -566,32 +568,56 @@
     gl: `<h5>Golden Laces</h5><p>Dropped by bosses. Spend them in the Golden Lace Locker (Cutaway tab).</p>`,
   })[id];
   U.tips.wheel = () => { const w = S().wheel; return `<h5>Wheel of Laces</h5><p>${w.charges ? `<b>${w.charges}</b> free spin${w.charges > 1 ? 's' : ''} ready!` : 'Next free spin in <b>' + C.time((w.next - Date.now()) / 1000) + '</b>'}</p><p>Recharges every ${Math.round(C.wheelPeriod() / 60000)} minutes, even while you're away.</p>`; };
+  U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole to play the piano. Then click again each time a word reaches the ring: he sings it and you earn Steps.</p><p>Perfect hits earn x1.5. Misses break your combo. Hit all eleven for a Perfect Verse.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
   U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man comes to take the sneakers. Click him to kick him away!</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
   U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man you beat fills a pip. When it's full, a boss shows up. Beat him before his timer runs out for Golden Laces!</p>`;
   U.tips.tablock = (id) => ({ tree: `<h5>Lace Tree</h5><p>Unlocks after your first Cutaway.</p>`, sneakers: `<h5>Sneakers</h5><p>Unlocks when you get your first Shoebox. Tuxedo men sometimes drop them.</p>`, cut: `<h5>Cutaway</h5><p>Unlocks as you approach ${f(C.SP_DIV)} lifetime Steps.</p>` })[id];
 
   /* ---------------- HUD on the stage ---------------- */
   function buildHud() {
-    $('#lyrics').innerHTML = D.PHRASE.map((p, i) => `<span class="w" data-i="${i}">${esc(p.w)}</span>`).join('');
+    $('#lyrics').innerHTML = `<div class="lane-line"></div><div class="lane-ring"><i></i></div>
+      ${D.PHRASE.map((p, i) => `<div class="note ${i % 2 ? 'n-dn' : 'n-up'}" data-i="${i}"><i class="dot"></i><span class="lbl">${esc(p.w)}</span></div>`).join('')}
+      <div class="lane-idle">Click O'Toole to start the song</div><div class="judge"></div>`;
     $('.combo-flame').innerHTML = A.icon('combo');
     $('#hud .meter.heat').dataset.tip = 'heat';
     $('#hud .meter.bossm').dataset.tip = 'bossmeter';
-    U.lyricState();
+    $('#lyrics').dataset.tip = 'lane';
   }
-  U.lyricState = () => {
-    const idx = S().wordIdx;
-    $$('#lyrics .w').forEach((w, i) => { w.classList.toggle('sung', i < idx); w.classList.toggle('next', i === idx); });
+  // the rhythm lane: word notes slide left and reach the ring on their beat
+  const RING_X = 58;
+  let laneNotes = null, laneW = 0, playing = false;
+  U.laneFrame = () => {
+    const lane = $('#lyrics');
+    if (!laneNotes) laneNotes = $$('.note', lane);
+    laneW = lane.clientWidth || laneW;
+    const pps = Math.max(200, laneW * 0.34);
+    const song = C.song(), t = song ? C.songTime() : -0.55;
+    if (!!song !== playing) { playing = !!song; lane.classList.toggle('playing', playing); }
+    let near = false;
+    laneNotes.forEach((el, i) => {
+      const p = D.PHRASE[i], x = RING_X + (p.t - t) * pps;
+      el.style.transform = `translateX(${x.toFixed(1)}px)`;
+      el.style.opacity = x < -30 || x > laneW + 30 ? 0 : 1;
+      if (song && Math.abs(p.t - t) < 0.05) near = true;
+    });
+    lane.classList.toggle('beat', near);
   };
-  U.word = (i, crit) => {
-    U.lyricState();
-    const w = $(`#lyrics .w[data-i="${i}"]`); if (w) { w.classList.remove('pop'); void w.offsetWidth; w.classList.add('pop'); }
+  U.songStart = () => { (laneNotes || $$('#lyrics .note')).forEach(el => el.classList.remove('perfect', 'good', 'missed', 'auto')); };
+  U.judge = (txt, cls) => {
+    const j = $('#lyrics .judge'); j.textContent = txt; j.className = 'judge ' + cls; void j.offsetWidth; j.classList.add('on');
+  };
+  U.word = (i, crit, grade) => {
+    const n = $(`#lyrics .note[data-i="${i}"]`); if (n) n.classList.add(grade);
+    if (grade !== 'auto') U.judge(crit ? 'CRIT!' : grade === 'perfect' ? 'PERFECT' : 'GOOD', crit ? 'crit' : grade);
     const b = $('#bubble'); b.querySelector('span').textContent = D.PHRASE[i].w + (i === D.PHRASE.length - 1 ? '!' : '');
     b.classList.toggle('crit', !!crit); b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
   };
+  U.miss = () => { U.judge('MISS', 'miss'); const l = $('#lyrics'); l.classList.remove('shake'); void l.offsetWidth; l.classList.add('shake'); };
+  U.wordMiss = (i) => { const n = $(`#lyrics .note[data-i="${i}"]`); if (n) n.classList.add('missed'); };
   U.verse = (q) => {
     const l = $('#lyrics'); l.classList.remove('done', 'perfect'); void l.offsetWidth; l.classList.add(q === 2 ? 'perfect' : 'done');
-    setTimeout(U.lyricState, 250);
   };
+  U.lyricState = () => {};
   U.noBurst = (txt) => { const n = $('#noBurst'); n.textContent = txt || 'NO!'; n.classList.remove('on'); void n.offsetWidth; n.classList.add('on'); };
   let bannerT = null;
   U.banner = (tag, title, text, ms) => {
@@ -707,20 +733,22 @@
     const slider = (k, label) => `<div class="set-row"><label for="set-${k}">${label}</label><input type="range" id="set-${k}" min="0" max="1" step="0.05" value="${s[k]}" data-k="${k}"></div>`;
     const tog = (k, label, sub) => `<div class="set-row"><label>${label}${sub ? `<small>${sub}</small>` : ''}</label><button class="toggle ${s[k] ? 'on' : ''}" data-t="${k}"><i></i></button></div>`;
     const sel = (k, label, opts) => `<div class="set-row"><label for="set-${k}">${label}</label><select id="set-${k}" data-s="${k}">${opts.map(([v, n]) => `<option value="${v}" ${String(s[k]) === String(v) ? 'selected' : ''}>${n}</option>`).join('')}</select></div>`;
-    const voices = [['piano', 'Original piano'], ['box', 'Music box'], ['chip', 'Chiptune'], ['choir', 'Choir']].concat(s.kazoo ? [['kazoo', 'Kazoo']] : []);
+    const voices = [['vocals', 'O\'Toole (original vocals)'], ['box', 'Music box'], ['chip', 'Chiptune'], ['choir', 'Choir']].concat(s.kazoo ? [['kazoo', 'Kazoo']] : []);
     const el = U.modal(`<div class="modal"><button class="x">✕</button><h2>Settings</h2>
-      <div class="set-group"><h3>Sound</h3>${slider('master', 'Master')}${slider('music', 'Music')}${slider('sfx', 'Effects')}${slider('voice', 'Singing')}${slider('no', '"No!" voice')}
-        ${sel('voiceMode', 'Singing voice', voices)}${tog('autoSound', 'Hear the Auto-Singer')}${tog('tts', 'Speak each word', 'Uses your device\'s text-to-speech')}</div>
+      <div class="set-group"><h3>Sound</h3>${slider('master', 'Master')}${slider('piano', 'Piano')}${slider('voice', 'O\'Toole\'s singing')}${slider('music', 'Background music')}${slider('sfx', 'Effects')}${slider('no', '"No!" voice')}
+        ${sel('voiceMode', 'Singing voice', voices)}${tog('autoSound', 'Hear the Auto-Singer')}</div>
+      <div class="set-group"><h3>Rhythm</h3><div class="set-row"><label for="set-offset">Timing offset <small id="offVal">${s.offset || 0} ms · raise it if your hits register as late</small></label><input type="range" id="set-offset" min="-200" max="200" step="5" value="${s.offset || 0}"></div>${tog('tts', 'Speak each word', 'Uses your device\'s text-to-speech')}</div>
       <div class="set-group"><h3>Visuals</h3>${sel('particles', 'Particles', [[0, 'Off'], [1, 'Low'], [2, 'High']])}${tog('shake', 'Screen shake')}${tog('floaters', 'Floating numbers')}${tog('bgAnim', 'Animated backgrounds')}${tog('reduce', 'Reduce motion')}${s.rainbow ? tog('rainbowOn', 'Rainbow O\'Toole', 'Secret unlocked!') : ''}</div>
       <div class="set-group"><h3>Game</h3>${sel('numFmt', 'Numbers', [['short', '1.23 M'], ['long', '1.23 million'], ['sci', '1.23e6'], ['eng', '1.23e6 (engineering)']])}${tog('confirmCut', 'Confirm before a Cutaway')}${tog('intro', 'Play the intro on launch')}</div>
       <div class="set-group"><h3>Save</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn sm mint" id="sSave">Save now</button><button class="btn sm sky" id="sExport">Export</button><button class="btn sm" id="sImport">Import</button><button class="btn sm lace" id="sReset">Erase everything</button><button class="btn sm ghost" id="sIntro">Replay intro</button></div>
         <textarea id="sText" placeholder="Exported save text appears here. To import, paste a save here and press Import."></textarea></div>
-      <div class="set-group"><h3>Keys</h3><p class="muted" style="margin:0">Space: sing · F: kick the closest tuxedo man · G: grab the Golden Sneaker · 1-6: tabs · B: buy the cheapest building · M: mute · Esc: close</p></div>
+      <div class="set-group"><h3>Keys</h3><p class="muted" style="margin:0">Space: start the song / sing on the beat · F: kick the closest tuxedo man · G: grab the Golden Sneaker · 1-6: tabs · B: buy the cheapest building · M: mute · Esc: close</p></div>
       <p class="muted" style="font-size:.8rem">Fan-made, non-commercial. Sneakers O'Toole is from <i>Family Guy</i> (20th Television / Fox).</p></div>`);
     $$('input[type=range]', el).forEach(r => r.oninput = () => {
       s[r.dataset.k] = +r.value; U.applySet();
-      if (['master', 'music', 'sfx', 'voice', 'no'].every(k => s[k] === 0)) root.dispatchEvent(new CustomEvent('egg', { detail: 'silence' }));
+      if (['master', 'music', 'piano', 'sfx', 'voice', 'no'].every(k => s[k] === 0)) root.dispatchEvent(new CustomEvent('egg', { detail: 'silence' }));
     });
+    const off = $('#set-offset', el); off.oninput = () => { s.offset = +off.value; $('#offVal', el).textContent = s.offset + ' ms · raise it if your hits register as late'; U.applySet(); };
     $$('[data-t]', el).forEach(b => b.onclick = () => { s[b.dataset.t] = !s[b.dataset.t]; b.classList.toggle('on', s[b.dataset.t]); U.applySet(); Snd.fx('ui'); });
     $$('select[data-s]', el).forEach(x => x.onchange = () => { s[x.dataset.s] = x.dataset.s === 'particles' ? +x.value : x.value; U.applySet(); U.render(true); });
     $('#sSave', el).onclick = () => { root.Game.save(); U.toast({ title: 'Saved' }); };
@@ -798,6 +826,7 @@
   U.render = (force) => renderView(force);
   U.frame = (dt, now) => {
     updateHeader(dt);
+    U.laneFrame();
     if (now - lastRender > 150) { lastRender = now; renderView(false); updateTabs(); updateHud(); U.refreshTip(); }
   };
   U.curTab = () => curTab;

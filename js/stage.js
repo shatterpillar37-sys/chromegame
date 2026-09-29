@@ -22,11 +22,15 @@
     DPR = Math.min(root.devicePixelRatio || 1, St.q.particles >= 2 ? 2 : 1.25);
     [bg, fxc].forEach(c => { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); c.style.width = W + 'px'; c.style.height = H + 'px'; });
     groundY = H * 0.86;
+    compact = W < 560 || H < 430;
+    stage.classList.toggle('compact', compact);
     staticLayer = null;
     St.layout();
   }
   St.size = () => ({ W, H, groundY });
-  St.charH = () => Math.min(H * 0.5, 330);
+  // tall enough to read, short enough to clear the rhythm lane (and its speech bubble) above his head
+  let compact = false;
+  St.charH = () => Math.max(90, Math.min(H * 0.52, 420, groundY - (compact ? 62 : 80) - 34));
 
   /* ---------------- scene painting ---------------- */
   const rng = (seed) => () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
@@ -408,6 +412,9 @@
     const c = St.otCenter();
     St.burst('dust', c.x + (Math.random() - 0.5) * 40, c.feet - 4, 3, { speed: 60, gravity: -40, size: 7, color: 'rgba(255,255,255,.7)', life: 0.5 });
     if (Math.random() < 0.5) St.burst('note', c.x + 30, c.top + 40, 1, { angle: -1.2, spread: 0.6, speed: 90, gravity: -30, size: 7, colors: ['#ffd23f', '#ff4d6d', '#4cc9f0', '#3ddc97'], txt: Math.random() < 0.5 ? '♪' : '♫', life: 1.2 });
+  };
+  St.flinch = () => {
+    otRig.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-3deg) translateX(-3px)' }, { transform: 'rotate(2deg)' }, { transform: 'rotate(0)' }], { duration: St.q.reduce ? 1 : 220 });
   };
   St.sayNo = () => {
     idleT = 0; if (asleep) St.wake(true);

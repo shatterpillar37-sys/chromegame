@@ -26,7 +26,7 @@
     } catch (e) { return false; }
   };
   G.hardReset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} C.load({}); St.clearEnemies(); afterLoad(); G.save(); St.walkIn(); };
-  function afterLoad() { St.setScene(S().scene); U.lyricState(); U.render(true); Snd.setChord('Ab'); }
+  function afterLoad() { C.stopSong(); Snd.stopMelody(); Snd.duck(false); St.setScene(S().scene); U.songStart(); U.render(true); Snd.setChord('Ab'); }
   G.onCutaway = (gain, ch) => {
     afterLoad(); G.save();
     if (gain) setTimeout(() => U.toast({ icon: A.icon('sp'), title: '+' + f(gain) + ' Sole Power', sub: S().cuts === 1 ? 'Spend it in the Lace Tree tab!' : 'Total earned: ' + f(S().spTotal) }), 1600);
@@ -43,31 +43,49 @@
 
   /* ---------------- core events → audio, stage, UI ---------------- */
   let lastWordFloat = 0;
-  C.on('word', (i, val, crit, auto) => {
-    if (!auto || U.set.autoSound) Snd.word(i, crit, auto);
+  // the song: one click plays the piano, every on-beat click after that is a sung word
+  function startSong(auto) {
+    if (C.song()) return;
+    const T = Snd.songStart();
+    C.startSong(T, auto);
+    Snd.duck(true);
+    U.songStart();
+    if (!auto) St.sing(false);
+  }
+  C.on('wantSong', () => { if (running) startSong(true); });
+  C.on('autoVocal', (k, song) => { if (U.set.autoSound) Snd.vocal(k, song.t0, { auto: true }); });
+  C.on('word', (i, val, crit, grade, voiced) => {
+    const auto = grade === 'auto', song = C.song();
+    if (!voiced && song) Snd.vocal(i, song.t0, { crit, auto });
+    else if (crit) Snd.fx('star');
     Snd.setChord(D.PHRASE[i].chord);
-    U.word(i, crit);
+    U.word(i, crit, grade);
     St.sing(crit);
     const p = otPos(), now = performance.now();
     if (val > 0 && (!auto || now - lastWordFloat > 250)) {
       lastWordFloat = now;
-      St.float((crit ? 'CRIT! +' : '+') + f(val, val < 10 ? 1 : undefined), p.x + (Math.random() - 0.5) * 90, p.top + 30, { size: crit ? 34 : auto ? 18 : 24, color: crit ? '#ffd23f' : '#ffffff', wobble: crit });
+      St.float((crit ? 'CRIT! +' : '+') + f(val, val < 10 ? 1 : undefined), p.x + (Math.random() - 0.5) * 90, p.top + 30, { size: crit ? 34 : auto ? 18 : grade === 'perfect' ? 27 : 23, color: crit ? '#ffd23f' : auto ? '#9bf0ff' : '#ffffff', wobble: crit });
     }
+    if (grade === 'perfect') St.burst('spark', p.x + 20, p.top + 20, 5, { speed: 180, size: 8, color: '#ffd23f', gravity: 100, life: 0.5 });
     if (crit) { St.shake(5); St.burst('spark', p.x, p.top + 60, 14, { speed: 320, size: 11, colors: ['#ffd23f', '#fff', '#ff9f1c'], gravity: 300 }); }
     const c = S().combo;
     if (!auto && [25, 50, 100, 150].includes(c)) { St.float('x' + c + ' COMBO!', p.x, p.top - 10, { size: 36, color: '#ff9f1c', vy: 60, life: 1.4 }); Snd.fx('star'); }
   });
-  C.on('verse', (val, q) => {
+  C.on('miss', () => { U.miss(); Snd.fx('miss'); St.flinch(); });
+  C.on('wordMiss', (k) => U.wordMiss(k));
+  C.on('songEnd', (val, q, mine) => {
+    Snd.duck(false);
+    if (q < 0 && mine === 0 && S().songs <= 3 && !S().stats.hits) U.banner('HOW TO SING', 'Click O\'Toole on the beat!', ' When a word reaches the yellow ring, click him again to make him sing it.', 7000);
+  });
+  C.on('verse', (val, q, mine) => {
     U.verse(q); Snd.fx('verse', q);
     const p = otPos();
-    const label = q === 2 ? 'PERFECT VERSE!' : q === 1 ? 'GREAT VERSE!' : 'VERSE!';
+    const label = q === 2 ? 'PERFECT VERSE!' : q === 1 ? 'GREAT VERSE!' : 'VERSE ' + mine + '/11';
     St.float(label, p.x, p.top - 20, { size: q === 2 ? 42 : 34, color: q === 2 ? '#ff4d6d' : q === 1 ? '#4cc9f0' : '#3ddc97', vy: 50, life: 1.6, wobble: q === 2, force: true });
     if (val > 0) St.float('+' + f(val), p.x, p.top + 20, { size: 28, color: '#ffd23f', vy: 70, life: 1.4 });
     St.burst('confetti', p.x, p.top, q === 2 ? 60 : 24, { speed: 380, gravity: 600, size: 10, colors: ['#ff4d6d', '#ffd23f', '#4cc9f0', '#3ddc97', '#b86bff'], life: 1.4, angle: -Math.PI / 2, spread: 2.2 });
     if (q === 2) St.shake(6);
     U.bumpBank();
-    const st = S().stats;
-    if (st.verses === 4 && !st.perfect) setTimeout(() => U.banner('TIP', 'Sing it in rhythm!', ' Click along with the song\'s beat for a PERFECT VERSE worth x3. The bouncing ball keeps time.', 7000), 900);
   });
   C.on('spawn', (e) => {
     Snd.fx('spawn');
@@ -139,7 +157,8 @@
   function sing(e) {
     if (!running) return;
     Snd.init();
-    C.click(false, performance.now() / 1000);
+    const r = C.tap();
+    if (r.res === 'start') startSong(false);
     St.idleReset();
     const now = performance.now();
     clickTimes.push(now); while (clickTimes.length && now - clickTimes[0] > 10000) clickTimes.shift();
@@ -257,10 +276,11 @@
     Snd.init().then(() => Snd.startMusic());
     St.walkIn();
     if (offlineInfo) setTimeout(() => U.welcome(offlineInfo), 900);
-    else if (S().stats.manualClicks === 0) setTimeout(() => U.banner('HOW TO PLAY', 'Click O\'Toole to sing!', ' Every click sings the next word of his song and earns Steps.', 7000), 1200);
+    else if (S().stats.manualClicks === 0) setTimeout(() => U.banner('HOW TO PLAY', 'Click O\'Toole to start his song!', ' Then click him again each time a word reaches the yellow ring. On-beat words earn Steps.', 8000), 1200);
     if (new Date().getHours() === 3) unlockEgg('night', ['Night Owl', 'Hopping at 3 AM. Respect.']);
   }
   function boot(hotData) {
+    C.clock = Snd.clock;
     const had = G.load(hotData && hotData.save);
     St.init(); St.initSprites(); U.init(); In.init(startGame);
     St.setScene(S().scene);

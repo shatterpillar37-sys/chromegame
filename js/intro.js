@@ -35,7 +35,7 @@
     const ctx = Snd.ctx();
     const lead = 0.45;
     let t0 = null;
-    if (ctx && Snd.ready()) t0 = Snd.playMelody(ctx.currentTime + lead);
+    if (ctx && Snd.ready()) t0 = Snd.playFull(ctx.currentTime + lead);
     const offset = t0 !== null ? (t0 - ctx.currentTime) * 1000 : lead * 1000;
     later(80, () => show.classList.add('lit'));
     // O'Toole walks in, bobbing on each eighth note
@@ -43,7 +43,7 @@
     for (let k = 0; k <= 16; k++) bob.push({ transform: `translateX(calc(-50% + ${(-60 + 60 * k / 16).toFixed(1)}vw)) translateY(${k % 2 ? -10 : 0}px) rotate(${k % 2 ? -2 : 1}deg)`, offset: k / 16 });
     walker.style.opacity = 1;
     walker.animate(bob, { duration: offset + 2200, easing: 'linear', fill: 'forwards' });
-    D.PHRASE.forEach((p, i) => later(offset + p.s * 1000, () => {
+    D.PHRASE.forEach((p, i) => later(offset + p.t * 1000, () => {
       words[i].classList.add('in');
       if (i === 10) {
         walker.style.opacity = 0; stander.style.opacity = 1;

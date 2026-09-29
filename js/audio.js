@@ -1,12 +1,12 @@
-/* Sneakers O'Toole — audio: sliced piano phrase, synth voices, the "No!", effects, adaptive music. */
+/* Sneakers O'Toole — audio: the piano song, O'Toole's vocals, synth voices, the "No!", effects, background pad. */
 (function (root) {
   'use strict';
   const D = root.DATA;
   const S = {};
   let ac = null, master, comp, bus = {}, buffers = {}, ready = false;
-  const vol = { master: 0.8, music: 0.35, sfx: 0.7, voice: 0.9, no: 1 };
+  const vol = { master: 0.8, music: 0.3, piano: 0.85, sfx: 0.7, voice: 1, no: 1 };
   S.vol = vol;
-  S.voice = 'piano';
+  S.voice = 'vocals';
   S.tts = false;
   const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -20,7 +20,7 @@
     try { ac = new (root.AudioContext || root.webkitAudioContext)(); } catch (e) { return Promise.resolve(); }
     comp = ac.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.2;
     master = ac.createGain(); master.connect(comp); comp.connect(ac.destination);
-    ['music', 'sfx', 'voice', 'no'].forEach(k => { bus[k] = ac.createGain(); bus[k].connect(master); });
+    ['music', 'piano', 'sfx', 'voice', 'no'].forEach(k => { bus[k] = ac.createGain(); bus[k].connect(master); });
     // a short plate-ish reverb for sparkle
     const rev = ac.createConvolver(), len = ac.sampleRate * 1.6, ir = ac.createBuffer(2, len, ac.sampleRate);
     for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
@@ -36,9 +36,10 @@
     if (!ac) return;
     const t = ac.currentTime;
     master.gain.setTargetAtTime(vol.master, t, 0.03);
-    bus.music.gain.setTargetAtTime(vol.music * 0.55, t, 0.05);
+    bus.music.gain.setTargetAtTime(vol.music * 0.55 * (S.inSong ? 0.3 : 1), t, 0.05);
     bus.sfx.gain.setTargetAtTime(vol.sfx * 0.6, t, 0.03);
     bus.voice.gain.setTargetAtTime(vol.voice, t, 0.03);
+    bus.piano.gain.setTargetAtTime(vol.piano, t, 0.03);
     bus.no.gain.setTargetAtTime(vol.no * 1.1, t, 0.03);
   };
 
@@ -83,34 +84,42 @@
   }
   S.tone = tone; S.noise = noise;
 
-  /* ---------------- the phrase ---------------- */
-  let lastSrc = null;
+  /* ---------------- the song ----------------
+     Clicking O'Toole plays the whole piano recording. Each word the player hits is
+     sung by scheduling that slice of the vocal track at its exact spot in the song,
+     so the voice always lands in time with the piano. */
   const VOWELS = { ai: [750, 1200, 2600], o: [570, 840, 2410], e: [530, 1840, 2480], i: [300, 2300, 3000], a: [700, 1650, 2500], u: [320, 800, 2240] };
-  function playSlice(p, t, gainMul) {
-    const buf = buffers.melody; if (!buf) return false;
-    if (lastSrc) { try { lastSrc.g.gain.cancelScheduledValues(t); lastSrc.g.gain.setTargetAtTime(0.0001, t, 0.03); lastSrc.s.stop(t + 0.2); } catch (e) {} }
-    const src = ac.createBufferSource(); src.buffer = buf;
-    const g = ac.createGain();
-    const start = Math.max(0, p.s - 0.025), len = Math.min(buf.duration - start, (p.e - p.s) + 0.35);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(1.3 * gainMul, t + 0.006);
-    g.gain.setValueAtTime(1.3 * gainMul, t + (p.e - p.s) + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-    src.connect(g); g.connect(bus.voice); g.connect(bus.rev);
-    src.start(t, start, len + 0.05);
-    lastSrc = { s: src, g };
-    return true;
-  }
+  S.offset = 0;                    // player's timing calibration, seconds
+  S.latency = () => ac ? (ac.outputLatency || ac.baseLatency || 0) : 0;
+  // the moment the player is hearing right now, on the audio clock
+  S.clock = () => ac ? ac.currentTime - S.latency() - S.offset : performance.now() / 1000 - S.offset;
+  let songSrc = null, songT0 = 0;
+  S.songStart = () => {
+    if (!ac || !buffers.piano) { songT0 = S.clock(); return songT0; }
+    S.songStop();
+    const T = ac.currentTime + 0.04;
+    const src = ac.createBufferSource(); src.buffer = buffers.piano;
+    const g = ac.createGain(); g.gain.value = 1;
+    src.connect(g); g.connect(bus.piano); g.connect(bus.rev);
+    src.start(T); songSrc = { s: src, g }; songT0 = T;
+    return T;
+  };
+  S.songStop = () => {
+    if (!songSrc || !ac) return;
+    const { s, g } = songSrc, t = ac.currentTime;
+    try { g.gain.setTargetAtTime(0.0001, t, 0.05); s.stop(t + 0.3); } catch (e) {}
+    songSrc = null;
+  };
   function synthVoice(p, t, mode, gainMul) {
-    const notes = p.sing, step = 0.13;
-    notes.forEach((n, k) => {
-      const tt = t + k * step, len = k === notes.length - 1 ? 0.28 : 0.11;
+    const notes = p.sing, step = 0.12;
+    notes.forEach((n0, k) => {
+      const n = n0 + 12, tt = t + k * step, len = k === notes.length - 1 ? Math.max(0.12, p.e - p.t - k * step) : 0.1;
       if (mode === 'box') {
         tone({ f: mtof(n + 12), type: 'sine', t: tt, len: 0.05, vol: 0.28 * gainMul, a: 0.002, d: 0.4, sus: 0.001, r: 0.3, dest: bus.voice, rev: 1 });
         tone({ f: mtof(n + 24), type: 'sine', t: tt, len: 0.03, vol: 0.06 * gainMul, a: 0.002, d: 0.2, sus: 0.001, r: 0.2, dest: bus.voice });
       } else if (mode === 'chip') {
-        tone({ f: mtof(n + 12), type: 'square', t: tt, len, vol: 0.1 * gainMul, a: 0.002, d: 0.05, sus: 0.7, r: 0.05, dest: bus.voice, lp: 5000 });
-      } else if (mode === 'choir' || mode === 'kazoo') {
+        tone({ f: mtof(n), type: 'square', t: tt, len, vol: 0.1 * gainMul, a: 0.002, d: 0.05, sus: 0.7, r: 0.05, dest: bus.voice, lp: 5000 });
+      } else {
         const osc = ac.createOscillator(), lfo = ac.createOscillator(), lg = ac.createGain(), g = ac.createGain();
         osc.type = 'sawtooth'; osc.frequency.setValueAtTime(mtof(n) * (mode === 'kazoo' ? 1.01 : 1), tt);
         if (mode === 'kazoo') osc.frequency.exponentialRampToValueAtTime(mtof(n), tt + 0.06);
@@ -123,30 +132,47 @@
         osc.start(tt); lfo.start(tt); osc.stop(tt + len + 0.2); lfo.stop(tt + len + 0.2);
       }
     });
-    // light accompaniment from the transcription
-    if (p.bass) tone({ f: mtof(p.bass), type: 'triangle', t, len: 0.12, vol: 0.18 * gainMul, a: 0.004, d: 0.15, sus: 0.3, r: 0.1, dest: bus.voice });
-    else D.CHORDS[p.chord].slice(0, 3).forEach(n => tone({ f: mtof(n), type: 'triangle', t, len: 0.08, vol: 0.05 * gainMul, a: 0.004, d: 0.1, sus: 0.2, r: 0.1, dest: bus.voice }));
   }
-  S.word = (i, crit, auto) => {
+  // sing word i of a song that started at audio time T
+  S.vocal = (i, T, opt) => {
     if (!ac) return;
-    const p = D.PHRASE[i], t = ac.currentTime + 0.005, gm = auto ? 0.45 : 1;
-    if (S.voice === 'piano') { if (!playSlice(p, t, gm)) synthVoice(p, t, 'box', gm); }
-    else synthVoice(p, t, S.voice, gm);
-    if (crit) { tone({ f: mtof(p.sing[0] + 24), type: 'sine', t, len: 0.05, vol: 0.12, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); tone({ f: mtof(p.sing[0] + 31), type: 'sine', t: t + 0.06, len: 0.05, vol: 0.08, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); }
-    if (S.tts && !auto && root.speechSynthesis) {
+    opt = opt || {};
+    const p = D.PHRASE[i], gm = opt.auto ? 0.6 : 1, now = ac.currentTime + 0.004;
+    if (T === undefined) T = songT0;
+    if (S.voice !== 'vocals' || !buffers.vocals) {
+      synthVoice(p, Math.max(now, T + p.t), S.voice === 'vocals' ? 'box' : S.voice, gm);
+    } else {
+      const from = p.s - 0.012, at = T + from, end = T + p.e + 0.02;
+      if (end > now + 0.03) {
+        const skip = Math.max(0, now - at), start = at + skip;
+        const src = ac.createBufferSource(); src.buffer = buffers.vocals;
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.linearRampToValueAtTime(1.25 * gm, start + (skip ? 0.015 : 0.006));
+        g.gain.setValueAtTime(1.25 * gm, Math.max(start + 0.02, end - 0.03));
+        g.gain.exponentialRampToValueAtTime(0.0001, end + 0.05);
+        src.connect(g); g.connect(bus.voice); g.connect(bus.rev);
+        src.start(start, from + skip, end - start + 0.08);
+      }
+    }
+    if (opt.crit) { const t = Math.max(now, T + p.t); tone({ f: mtof(p.sing[0] + 36), type: 'sine', t, len: 0.05, vol: 0.1, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); tone({ f: mtof(p.sing[0] + 43), type: 'sine', t: t + 0.06, len: 0.05, vol: 0.07, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); }
+    if (S.tts && !opt.auto && root.speechSynthesis) {
       try { root.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(p.w); u.rate = 1.6; u.pitch = 1.3; u.volume = vol.voice * vol.master; root.speechSynthesis.speak(u); } catch (e) {}
     }
   };
-  // play the whole recording (intro, easter eggs)
+  // a single word on its own, outside a song (logo easter egg)
+  S.word = (i) => { if (!ac) return; const p = D.PHRASE[i]; S.vocal(i, ac.currentTime + 0.01 - (p.s - 0.012)); };
+  // the full recording with vocals (intro)
   let fullSrc = null;
-  S.playMelody = (when, rate) => {
-    if (!ac || !buffers.melody) return null;
-    const src = ac.createBufferSource(); src.buffer = buffers.melody; src.playbackRate.value = rate || 1;
-    const g = ac.createGain(); g.gain.value = 1.2; src.connect(g); g.connect(bus.voice); g.connect(bus.rev);
+  S.playFull = (when) => {
+    if (!ac || !buffers.full) return null;
+    const src = ac.createBufferSource(); src.buffer = buffers.full;
+    const g = ac.createGain(); g.gain.value = 1.1; src.connect(g); g.connect(bus.voice); g.connect(bus.rev);
     const t = when || ac.currentTime + 0.02; src.start(t); fullSrc = src;
     return t;
   };
-  S.stopMelody = () => { if (fullSrc) try { fullSrc.stop(); } catch (e) {} fullSrc = null; };
+  S.playMelody = S.playFull;
+  S.stopMelody = () => { if (fullSrc) try { fullSrc.stop(); } catch (e) {} fullSrc = null; S.songStop(); };
 
   let lastNo = 0;
   S.no = (force) => {
@@ -167,6 +193,7 @@
   fx.hover = () => tone({ f: 2200, type: 'sine', len: 0.01, vol: 0.015, a: 0.001, d: 0.02, sus: 0.01, r: 0.02 });
   fx.tab = () => { tone({ f: 660, type: 'triangle', len: 0.03, vol: 0.08 }); tone({ f: 990, type: 'triangle', t: ac.currentTime + 0.04, len: 0.03, vol: 0.06 }); };
   fx.buy = (n) => { const t = ac.currentTime; tone({ f: 1318, type: 'square', t, len: 0.04, vol: 0.05, lp: 4000 }); tone({ f: 1975, type: 'square', t: t + 0.05, len: 0.08, vol: 0.05, lp: 4000 }); if (n > 1) tone({ f: 2637, type: 'square', t: t + 0.1, len: 0.08, vol: 0.04, lp: 4000 }); };
+  fx.miss = () => { noise({ f: 300, ft: 'lowpass', len: 0.05, vol: 0.12 }); tone({ f: 140, slide: 100, type: 'square', len: 0.06, vol: 0.03, lp: 700 }); };
   fx.cant = () => tone({ f: 180, type: 'square', len: 0.08, vol: 0.05, lp: 900 });
   fx.upgrade = () => { const t = ac.currentTime;[0, 4, 7, 12].forEach((s, i) => tone({ f: mtof(72 + s), type: 'triangle', t: t + i * 0.05, len: 0.08, vol: 0.12, rev: 1 })); };
   fx.hit = (big) => { noise({ f: 900, q: 0.8, len: 0.06, vol: big ? 0.5 : 0.35 }); tone({ f: big ? 120 : 160, slide: 60, type: 'sine', len: 0.08, vol: 0.4, a: 0.001 }); };
@@ -228,7 +255,7 @@
   function schedule() {
     if (!mOn || !ac) return;
     while (nextBeat < ac.currentTime + 0.12) {
-      const t = nextBeat, i = S.intensity, b = beatN % 4;
+      const t = nextBeat, i = S.inSong ? 0 : S.intensity, b = beatN % 4;
       const bass = D.CHORD_BASS[S.chord] || 44;
       // bass on 1 and 3, fifth on 2 and 4: an oom-pah echo of the reference piano
       if (i >= 1) tone({ f: mtof(b % 2 === 0 ? bass : bass + 7), type: 'triangle', t, len: 0.14, vol: 0.2, a: 0.004, d: 0.15, sus: 0.4, r: 0.1, dest: bus.music });
@@ -252,6 +279,12 @@
     padVoices = []; padChord = null;
   };
   S.setChord = (ch) => { S.chord = ch; if (mOn) setPad(ch); };
+  // the song is the music: duck the pad and drop the beat while it plays
+  S.inSong = false;
+  S.duck = (on) => {
+    S.inSong = on;
+    if (ac) bus.music.gain.setTargetAtTime(vol.music * 0.55 * (on ? 0.3 : 1), ac.currentTime, on ? 0.05 : 0.6);
+  };
   S.beatPhase = () => ac ? ((ac.currentTime - nextBeat) / BEAT + 1) % 1 : 0;
   S.BEAT = BEAT;
 

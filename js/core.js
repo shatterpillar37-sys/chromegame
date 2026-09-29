@@ -25,7 +25,7 @@
     v: 2, created: Date.now(), savedAt: Date.now(), time: 0,
     steps: 0, runSteps: 0, allSteps: 0,
     b: {}, up: {}, tree: {}, locker: {},
-    wordIdx: 0, verseTimes: [], verseAuto: false, lastClick: -9, combo: 0, autoAcc: 0,
+    lastClick: -9, combo: 0, songIdle: 0, songs: 0,
     heat: 0, bossMeter: 0, stun: 0, guardAcc: 0,
     enemies: [], eid: 1,
     golden: null, goldNext: 150, eventNext: 240, cams: [], encore: 0, scout: 0,
@@ -39,7 +39,7 @@
     stats: {
       clicks: 0, manualClicks: 0, verses: 0, perfect: 0, bestCombo: 0, crits: 0, enemies: 0, bosses: 0, goldenTux: 0,
       tugs: 0, boxesOpened: 0, shinies: 0, golden: 0, wheelSpins: 0, jackpots: 0, events: 0, play: 0, bestSps: 0,
-      upgrades: 0, stepsClicked: 0, bestVerse: 0, best: {}, bosskills: {},
+      upgrades: 0, stepsClicked: 0, bestVerse: 0, best: {}, bosskills: {}, hits: 0, perfectHits: 0, misses: 0,
     },
     toggles: { autobox: false, autobuy: false, autoup: false },
   });
@@ -241,44 +241,93 @@
     return true;
   };
 
-  /* ---------------- singing (clicking O'Toole) ---------------- */
-  C.click = (auto, now) => {
-    const m = C.mods();
-    now = now === undefined ? S.time : now;
-    const idx = S.wordIdx;
-    if (!auto) {
-      const win = 1.1 * m.comboWin;
-      S.combo = (S.time - S.lastClick <= win) ? S.combo + 1 : 1;
-      S.lastClick = S.time;
-      if (S.combo > S.stats.bestCombo) S.stats.bestCombo = S.combo;
-      S.stats.manualClicks++;
-    }
-    if (idx === 0) { S.verseTimes = []; S.verseAuto = false; }
-    S.verseTimes.push(now); if (auto) S.verseAuto = true;
-    let val = C.clickBase(m) * (auto ? 1 : C.comboMult());
+  /* ---------------- singing: a rhythm game over the piano ----------------
+     Clicking O'Toole starts the song. While it plays, a click within a word's
+     window sings that word (Perfect or Good) and earns Steps; any other click is a miss. */
+  C.clock = () => S.time;            // replaced by the audio clock in the browser
+  let song = null;
+  C.song = () => song;
+  C.songTime = () => song ? C.clock() - song.t0 : -1;
+  C.startSong = (t0, auto) => {
+    if (song) return null;
+    song = { t0: t0 === undefined ? C.clock() : t0, hits: new Array(D.PHRASE.length).fill(null), planned: {}, auto: !!auto };
+    S.songIdle = 0;
+    C.emit('songStart', song);
+    return song;
+  };
+  function award(k, grade, m) {
+    let val = C.clickBase(m) * (grade === 'perfect' ? 1.5 : grade === 'good' ? 1 : 0.5);
+    if (grade !== 'auto') val *= C.comboMult();
     let crit = false;
-    if (val > 0 && R() < m.crit * (1 + m.luck * 0.5)) { crit = true; val *= 10 * m.critMult; S.stats.crits++; }
+    if (val > 0 && grade !== 'auto' && R() < m.crit * (1 + m.luck * 0.5)) { crit = true; val *= 10 * m.critMult; S.stats.crits++; }
     C.gain(val);
     S.stats.clicks++; S.stats.stepsClicked += val;
-    S.wordIdx = (idx + 1) % D.PHRASE.length;
-    C.emit('word', idx, val, crit, auto);
-    if (S.wordIdx === 0) verseDone(m);
-    return { idx, val, crit };
+    return { val, crit };
+  }
+  // a click on O'Toole: starts the song, or tries to hit the next word
+  C.tap = (now) => {
+    const m = C.mods();
+    S.stats.manualClicks++;
+    S.lastClick = S.time;
+    if (!song) return { res: 'start' };
+    const t = C.songTime();
+    let best = -1, bd = Infinity;
+    D.PHRASE.forEach((p, k) => {
+      const h = song.hits[k];
+      if (h && h !== 'planned') return;
+      const d = Math.abs(t - p.t);
+      if (d < bd) { bd = d; best = k; }
+    });
+    if (best < 0 || bd > D.WIN_GOOD) {
+      if (S.combo >= 10) C.emit('comboEnd', S.combo);
+      S.combo = 0; S.stats.misses++;
+      C.emit('miss', best, t);
+      return { res: 'miss' };
+    }
+    const grade = bd <= D.WIN_PERFECT ? 'perfect' : 'good';
+    const voiced = !!song.planned[best];
+    song.hits[best] = grade;
+    S.combo++; if (S.combo > S.stats.bestCombo) S.stats.bestCombo = S.combo;
+    S.stats.hits++; if (grade === 'perfect') S.stats.perfectHits++;
+    const { val, crit } = award(best, grade, m);
+    C.emit('word', best, val, crit, grade, voiced, t - D.PHRASE[best].t);
+    return { res: grade, idx: best, val, crit };
   };
-  C.verseQuality = () => {
-    const t = S.verseTimes;
-    if (S.verseAuto || t.length !== D.PHRASE.length) return 0;
-    const u = t.slice(1).map((x, i) => x - t[i]), r = D.RHYTHM;
-    let num = 0, den = 0; u.forEach((x, i) => { num += x * r[i]; den += r[i] * r[i]; });
-    const k = num / den;
-    if (k < 0.45 || k > 2.2) return 0;
-    let err = 0; u.forEach((x, i) => err += Math.abs(x - k * r[i]) / (k * r[i]));
-    err /= u.length;
-    return err < 0.22 ? 2 : err < 0.38 ? 1 : 0;   // 2 = perfect, 1 = great
-  };
-  function verseDone(m) {
-    const q = C.verseQuality();
-    let mult = m.verse * (q === 2 ? 3 : q === 1 ? 1.5 : 1);
+  C.click = C.tap;  // older name
+  C.autoChance = (m) => Math.min(1, 0.25 * (m || C.mods()).auto);
+  function tickSong(m) {
+    if (!song) return;
+    const t = C.songTime();
+    D.PHRASE.forEach((p, k) => {
+      if (song.hits[k] || song.planned[k] === false) return;
+      // the Auto-Singer decides just before the word so its vocal lands in time
+      if (song.planned[k] === undefined && t >= p.s - 0.08) {
+        song.planned[k] = m.auto > 0 && S.challenge !== 'silent' && R() < C.autoChance(m);
+        if (song.planned[k]) C.emit('autoVocal', k, song);
+      }
+      if (t > p.t + D.WIN_GOOD) {
+        if (song.planned[k]) {
+          song.hits[k] = 'auto';
+          const { val } = award(k, 'auto', m);
+          C.emit('word', k, val, false, 'auto', true, 0);
+        } else {
+          song.hits[k] = 'miss';
+          if (S.combo >= 10) C.emit('comboEnd', S.combo);
+          S.combo = 0;
+          C.emit('wordMiss', k);
+        }
+      }
+    });
+    if (t >= D.SONG_END) songDone(m);
+  }
+  function songDone(m) {
+    const done = song; song = null;
+    const mine = done.hits.filter(h => h === 'perfect' || h === 'good').length;
+    const sung = done.hits.filter(h => h && h !== 'miss').length;
+    const q = mine === D.PHRASE.length ? 2 : mine >= 9 ? 1 : sung >= 6 ? 0 : -1;
+    S.songs = (S.songs || 0) + 1;
+    if (q < 0) { C.emit('songEnd', 0, q, mine); return; }
+    let mult = m.verse * (q === 2 ? 3 : q === 1 ? 1.5 : 1) * (0.5 + 0.5 * sung / D.PHRASE.length);
     if (S.encore > 0) { mult *= 10; S.encore--; }
     if (S.scout > 0) { mult *= 10; S.scout = 0; }
     const val = S.challenge === 'monotone' || S.challenge === 'silent' ? 0 : Math.max(C.clickBase(m) * 5, C.sps(m) * 0.5) * mult;
@@ -289,9 +338,12 @@
     if (m.verseShock) S.enemies.forEach(e => C.damage(e, m.kickDmg * 3, 'shock'));
     // Shiny O'Toole: a very rare glow-up
     if (R() < (1 / 4096) * (1 + m.luck)) { S.shinyOToole = 60; C.refresh(); C.emit('shinyOToole'); C.unlock('egg_shiny'); }
-    if (R() < 0.01 * m.box * (1 + m.luck)) { S.boxes++; C.emit('boxDrop', 1, 'verse'); }
-    C.emit('verse', val, q);
+    if (R() < 0.02 * m.box * (1 + m.luck)) { S.boxes++; C.emit('boxDrop', 1, 'verse'); }
+    C.emit('verse', val, q, mine);
+    C.emit('songEnd', val, q, mine);
   }
+  C.accuracy = () => { const st = S.stats; return st.hits + st.misses ? st.hits / (st.hits + st.misses) : 0; };
+  C.stopSong = () => { song = null; };
 
   /* ---------------- tuxedo men ---------------- */
   C.heatRate = (m) => {
@@ -556,7 +608,7 @@
     const m = C.mods();
     S.spTotal += gain; S.sp += gain; S.cuts++;
     S.steps = 0; S.runSteps = 0; S.b = {}; S.up = {};
-    S.enemies = []; S.heat = 0; S.bossMeter = 0; S.stun = 0; S.wordIdx = 0; S.combo = 0; S.verseTimes = [];
+    S.enemies = []; S.heat = 0; S.bossMeter = 0; S.stun = 0; S.combo = 0; song = null;
     S.buffs = S.buffs.filter(b => b.id === 'frenzy' && false); S.golden = null; S.cams = []; S.encore = 0; S.scout = 0;
     if (m.headStart) { S.b.kid = 10; S.b.fan = 10; S.b.choir = 5; }
     S.scene = S.cuts % D.SCENES.length;
@@ -678,10 +730,13 @@
     const sps = C.sps(m);
     C.gain(sps * dt);
     if (sps > S.stats.bestSps) S.stats.bestSps = sps;
-    // combo decays
-    if (S.combo > 0 && S.time - S.lastClick > 1.1 * m.comboWin) { if (S.combo >= 10) C.emit('comboEnd', S.combo); S.combo = 0; }
-    // auto-singer
-    if (m.auto > 0) { S.autoAcc += m.auto * dt; let n = 0; while (S.autoAcc >= 1 && n < 20) { S.autoAcc -= 1; n++; C.click(true); } if (S.autoAcc > 1) S.autoAcc = 0; }
+    // the song, and a combo that fades if you stop singing
+    tickSong(m);
+    if (!song) {
+      S.songIdle += dt;
+      if (S.combo > 0 && S.songIdle > 3 * m.comboWin) { if (S.combo >= 10) C.emit('comboEnd', S.combo); S.combo = 0; }
+      if (m.auto > 0 && S.songIdle > 1.2) { S.songIdle = 0; C.emit('wantSong'); }
+    }
     // heat & spawning
     if (!C.buffActive('repel')) {
       S.heat += C.heatRate(m) * dt;

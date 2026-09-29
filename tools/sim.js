@@ -1,7 +1,7 @@
 // Balance simulator: plays the game with a simple bot and prints pacing milestones.
-// usage: node tools/sim.js [hours] [clicksPerSec]
+// usage: node tools/sim.js [hours] [accuracy 0-1]
 const C = require('../js/core.js'), D = C.D;
-const HOURS = +process.argv[2] || 8, CPS = +(process.argv[3] || 5);
+const HOURS = +process.argv[2] || 8, ACC = +(process.argv[3] || 0.85);
 let seed = 7; C.rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 C.load({});
 const S = () => C.get();
@@ -22,10 +22,21 @@ function bestPurchase() {
   return best;
 }
 for (t = 0; t < HOURS * 3600; t += dt) {
-  C.tick(dt);
   const s = S();
-  clickAcc += CPS * dt;
-  while (clickAcc >= 1) { clickAcc--; C.click(false, s.time); }
+  // the bot plays the rhythm game: restart the song after a short pause, hit words at ACC accuracy
+  const song = C.song();
+  if (!song) { if ((s.songIdle || 0) > 0.5) C.startSong(s.time); }
+  else {
+    const st = C.songTime();
+    D.PHRASE.forEach((p, k) => {
+      if (song.hits[k] || song.tried?.[k] || st + dt < p.t) return;
+      (song.tried = song.tried || {})[k] = 1;
+      if (C.rand() > ACC) return;
+      const jitter = (C.rand() - 0.5) * (C.rand() < 0.6 ? 0.12 : 0.26);
+      const real = C.clock; C.clock = () => song.t0 + p.t + jitter; C.tap(); C.clock = real;
+    });
+  }
+  C.tick(dt);
   // kick enemies: 4 kicks/sec
   kickAcc += 4 * dt;
   while (kickAcc >= 1 && s.enemies.length) { kickAcc--; const e = s.enemies.slice().sort((a, b) => b.p - a.p)[0]; C.kick(e.id); }
