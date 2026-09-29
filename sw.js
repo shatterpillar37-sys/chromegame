@@ -1,5 +1,5 @@
 // Offline cache for the installed app. Bump CACHE when files change.
-const CACHE = 'otoole-v11';
+const CACHE = 'otoole-v12';
 const FILES = ['./', 'index.html', 'css/game.css', 'js/assets.js', 'js/data.js', 'js/core.js', 'js/art.js', 'js/audio.js', 'js/stage.js', 'js/ui.js', 'js/intro.js', 'js/main.js',
   'img/otoole-stand.png', 'img/otoole-walk.png', 'img/otoole-no.png', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });

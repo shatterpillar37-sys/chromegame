@@ -514,7 +514,8 @@
       if (k % D.STOPS.length === 0) S.stats.laps++;
       S.scene = C.stopInfo(k).scene;
       C.refresh();
-      C.emit('arrive', C.stopInfo(k), r, { quiet: quiet || n > 1, first });
+      // when several stops pass at once, only the last one gets the full arrival
+      C.emit('arrive', C.stopInfo(k), r, { quiet: quiet || S.runSteps >= C.stopAt(k + 1), first });
       if (r.boxes) C.emit('boxDrop', r.boxes, 'stop');
     }
   }

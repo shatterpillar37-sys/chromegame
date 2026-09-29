@@ -173,7 +173,7 @@
   // the Long Walk: arriving at a new stop on the route
   C.on('arrive', (info, r, o) => {
     St.setScene(info.scene, o.quiet ? null : { name: info.name, sub: 'STOP ' + info.k + (info.lap ? ' · LAP ' + (info.lap + 1) : '') });
-    if (o.quiet) { U.toast({ icon: A.icon('i:prod'), title: 'Reached ' + info.name, sub: 'Stop ' + info.k + ' · production x' + f(C.mods().journey, 2) }); return; }
+    if (o.quiet) { if (S().runSteps < C.stopAt(info.k + 1)) U.toast({ icon: A.icon('i:prod'), title: 'Reached ' + info.name, sub: 'Stop ' + info.k + ' · production x' + f(C.mods().journey, 2) }); return; }
     Snd.fx('arrive');
     U.arrive(info, r);
     const p = otPos();

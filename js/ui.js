@@ -91,7 +91,7 @@
     t.style.left = Math.max(8, left) + 'px'; t.style.top = Math.max(8, top) + 'px';
   }
   function hideTip() { tipEl = null; tip().classList.remove('on'); }
-  U.refreshTip = () => { if (tipEl && document.body.contains(tipEl)) { const key = tipEl.dataset.tip, fn = U.tips[key.split(':')[0]]; if (fn) tip().innerHTML = fn(key.split(':').slice(1).join(':'), tipEl) || ''; } else if (tipEl) hideTip(); };
+  U.refreshTip = () => { if (tipEl && document.body.contains(tipEl) && tipEl.dataset.tip) { const key = tipEl.dataset.tip, fn = U.tips[key.split(':')[0]]; if (fn) tip().innerHTML = fn(key.split(':').slice(1).join(':'), tipEl) || ''; } else if (tipEl) hideTip(); };
   function bindTips() {
     document.addEventListener('pointerover', (e) => {
       if (e.pointerType === 'touch') return;
@@ -354,7 +354,7 @@
       const lv = s.tree[n.id] || 0, own = lv > 0, av = C.treeAvail(n), can = av && s.sp >= C.treeCost(n) && lv < n.max, col = D.BRANCHES[n.br].color;
       const cls = ['tnode', own ? 'own' : '', !av ? 'locked' : '', av && !own ? 'avail' : '', can ? 'can' : '', treeSel === n.id ? 'sel' : ''].join(' ');
       const r = n.id === 'root' ? 34 : n.max > 1 ? 30 : 26;
-      const icon = n.id === 'root' ? 'sp' : (n.fx.prod ? 'prod' : n.fx.click ? 'click' : n.fx.verse ? 'lyric' : n.fx.comboCap || n.fx.comboWin ? 'combo' : n.fx.auto ? 'note' : n.fx.crit || n.fx.critMult ? 'crit' : n.fx.kick || n.fx.kickMult ? 'kick' : n.fx.heat ? 'heat' : n.fx.guard ? 'tux' : n.fx.enemyReward ? 'tux' : n.fx.bossTime || n.fx.bossGl ? 'boss' : n.fx.luck ? 'luck' : n.fx.gold || n.fx.goldDur ? 'gold' : n.fx.box ? 'box' : n.fx.wheel ? 'wheel' : n.fx.shiny ? 'star' : n.fx.shards ? 'shard' : n.fx.offline ? 'clock' : n.fx.cost ? 'shop' : n.fx.headStart ? 'kid' : n.fx.pity ? 'box' : n.fx.spEff ? 'sp' : n.fx.verseShock ? 'crit' : n.fx.tug ? 'kick' : 'star');
+      const icon = n.id === 'root' ? 'sp' : (n.fx.prod ? 'prod' : n.fx.click ? 'click' : n.fx.verse ? 'lyric' : n.fx.comboCap || n.fx.comboWin ? 'combo' : n.fx.auto ? 'note' : n.fx.crit || n.fx.critMult ? 'crit' : n.fx.kick || n.fx.kickMult ? 'kick' : n.fx.heat ? 'heat' : n.fx.guard ? 'tux' : n.fx.enemyReward ? 'tux' : n.fx.bossTime || n.fx.bossGl ? 'boss' : n.fx.luck ? 'luck' : n.fx.gold || n.fx.goldDur ? 'gold' : n.fx.box ? 'box' : n.fx.wheel ? 'wheel' : n.fx.shiny ? 'star' : n.fx.shards ? 'shard' : n.fx.offline ? 'clock' : n.fx.cost ? 'shop' : n.fx.headStart ? 'kid' : n.fx.pity ? 'box' : n.fx.spEff ? 'sp' : n.fx.verseShock ? 'mic' : n.fx.tug ? 'kick' : n.fx.hypeGain || n.fx.hypeRegen ? 'hype' : n.fx.strutDur ? 'shades' : n.fx.journeyAdd ? 'map' : n.fx.arrive ? 'flag' : 'star');
       nodes += `<g class="${cls}" data-n="${n.id}" transform="translate(${n.x * SP} ${n.y * SP})" data-tip="tree:${n.id}">
         <circle class="ring" r="${r + 6}" fill="${col}" opacity="${can ? 0.35 : 0}"/>
         <circle class="base" r="${r}" fill="${own ? col : '#2b2166'}"/>
@@ -958,11 +958,11 @@
   /* ---------------- offline ---------------- */
   U.welcome = (info) => {
     const el = U.modal(`<div class="modal" style="text-align:center"><button class="x">✕</button>
-      <img src="img/otoole-stand.png" alt="" style="height:170px;filter:drop-shadow(0 4px 0 #1b1330)">
-      <h2>Welcome back!</h2><p class="muted">You were away for <b>${C.time(info.sec)}</b>. O'Toole kept hopping${info.rate < 1 ? ` at ${Math.round(info.rate * 100)}% speed` : ''}.</p>
-      <div class="cut-hero card" style="margin:12px 0"><div class="big-n" style="font-size:2.2rem">+${f(info.steps)}</div><p>Steps while you were away${info.capped < info.sec ? ` (capped at ${C.time(info.capped)})` : ''}</p></div>
+      <img src="img/otoole-walk.png" alt="" style="height:170px;filter:drop-shadow(0 4px 0 #1b1330)">
+      <h2>Welcome back!</h2><p class="muted">You were away for <b>${C.time(info.sec)}</b>. O'Toole kept walking${info.rate < 1 ? ` at ${Math.round(info.rate * 100)}% speed` : ''}.</p>
+      <div class="cut-hero card" style="margin:12px 0"><div class="big-n" style="font-size:2.2rem">+${f(info.steps)}</div><p>Steps while you were away${info.capped < info.sec ? ` (capped at ${C.time(info.capped)})` : ''}</p>${info.stops ? `<p>He walked <b>${info.stops}</b> stop${info.stops > 1 ? 's' : ''} further, all the way to <b>${esc(C.stopInfo(S().stop).name)}</b>!</p>` : ''}</div>
       ${S().wheel.charges ? `<p>You have <b>${S().wheel.charges}</b> free Wheel spin${S().wheel.charges > 1 ? 's' : ''} waiting!</p>` : ''}
-      <button class="btn big" id="wbOk">Keep hopping</button></div>`);
+      <button class="btn big" id="wbOk">Keep walking</button></div>`);
     $('#wbOk', el).onclick = () => U.close();
   };
 
