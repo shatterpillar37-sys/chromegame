@@ -248,7 +248,11 @@
   C.LANES = 4;
   let song = null;
   C.song = () => song;
-  C.songTime = () => song ? C.clock() - song.t0 : -1;
+  // position in the recording (seconds), so word timings stay fixed whatever the playback speed
+  C.songTime = () => song ? (C.clock() - song.t0) * song.speed : -1;
+  C.strict = false;          // strict timing: wrong/extra presses are misses and only tight hits are Perfect
+  C.MAX_SPEED = 4;
+  C.speed = () => S.songSpeed || 1;
   C.startSong = (t0, auto) => {
     if (song) return null;
     // every word gets a random lane (F G H J by default); close words never share one
@@ -257,7 +261,7 @@
       let l; do { l = Math.floor(R() * C.LANES); } while (k && l === lanes[k - 1] && p.t - D.PHRASE[k - 1].t < 0.3);
       lanes.push(l);
     });
-    song = { t0: t0 === undefined ? C.clock() : t0, hits: new Array(D.PHRASE.length).fill(null), planned: {}, auto: !!auto, lanes };
+    song = { t0: t0 === undefined ? C.clock() : t0, hits: new Array(D.PHRASE.length).fill(null), planned: {}, auto: !!auto, lanes, speed: C.speed() };
     S.songIdle = 0;
     C.emit('songStart', song);
     return song;
@@ -281,18 +285,19 @@
     let best = -1, bd = Infinity, wrong = false;
     D.PHRASE.forEach((p, k) => {
       if (song.hits[k]) return;
-      const d = Math.abs(t - p.t);
+      const d = Math.abs(t - p.t) / song.speed;   // real seconds
       if (d > D.WIN_GOOD) return;
       if (lane !== undefined && song.lanes[k] !== lane) { wrong = true; return; }
       if (d < bd) { bd = d; best = k; }
     });
     if (best < 0) {
+      if (!C.strict) return { res: 'ignored' };   // mashing keys is fine: stray presses cost nothing
       if (S.combo >= 10) C.emit('comboEnd', S.combo);
       S.combo = 0; S.stats.misses++;
       C.emit('miss', lane, wrong);
       return { res: 'miss', wrong };
     }
-    const grade = bd <= D.WIN_PERFECT ? 'perfect' : 'good';
+    const grade = !C.strict || bd <= D.WIN_PERFECT ? 'perfect' : 'good';
     const voiced = !!song.planned[best];
     song.hits[best] = grade;
     S.combo++; if (S.combo > S.stats.bestCombo) S.stats.bestCombo = S.combo;
@@ -313,7 +318,7 @@
         song.planned[k] = m.auto > 0 && S.challenge !== 'silent' && R() < C.autoChance(m);
         if (song.planned[k]) C.emit('autoVocal', k, song);
       }
-      if (t > p.t + D.WIN_GOOD) {
+      if (t > p.t + D.WIN_GOOD * song.speed) {
         if (song.planned[k]) {
           song.hits[k] = 'auto';
           const { val } = award(k, 'auto', m);
@@ -336,6 +341,11 @@
     S.songs = (S.songs || 0) + 1;
     // keep the songs coming while the player is singing along; sitting one out stops the loop
     S.autoNext = mine > 0 && S.challenge !== 'silent';
+    // every flawless song speeds the next one up by 10%; dropping a word resets the tempo
+    const prevSpeed = done.speed;
+    S.songSpeed = mine === D.PHRASE.length ? Math.min(C.MAX_SPEED, prevSpeed * 1.1) : 1;
+    if (S.songSpeed > (S.stats.bestSpeed || 1)) S.stats.bestSpeed = S.songSpeed;
+    if (S.songSpeed !== prevSpeed) C.emit('speed', S.songSpeed, prevSpeed);
     if (q < 0) { C.emit('songEnd', 0, q, mine); return; }
     let mult = m.verse * (q === 2 ? 3 : q === 1 ? 1.5 : 1) * (0.5 + 0.5 * sung / D.PHRASE.length);
     if (S.encore > 0) { mult *= 10; S.encore--; }
@@ -353,7 +363,7 @@
     C.emit('songEnd', val, q, mine);
   }
   C.accuracy = () => { const st = S.stats; return st.hits + st.misses ? st.hits / (st.hits + st.misses) : 0; };
-  C.stopSong = () => { song = null; S.autoNext = false; };
+  C.stopSong = () => { song = null; S.autoNext = false; S.songSpeed = 1; };
 
   /* ---------------- tuxedo men ---------------- */
   C.heatRate = (m) => {
@@ -618,7 +628,7 @@
     const m = C.mods();
     S.spTotal += gain; S.sp += gain; S.cuts++;
     S.steps = 0; S.runSteps = 0; S.b = {}; S.up = {};
-    S.enemies = []; S.heat = 0; S.bossMeter = 0; S.stun = 0; S.combo = 0; song = null; S.autoNext = false;
+    S.enemies = []; S.heat = 0; S.bossMeter = 0; S.stun = 0; S.combo = 0; song = null; S.autoNext = false; S.songSpeed = 1;
     S.buffs = S.buffs.filter(b => b.id === 'frenzy' && false); S.golden = null; S.cams = []; S.encore = 0; S.scout = 0;
     if (m.headStart) { S.b.kid = 10; S.b.fan = 10; S.b.choir = 5; }
     S.scene = S.cuts % D.SCENES.length;

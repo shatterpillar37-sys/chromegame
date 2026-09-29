@@ -95,12 +95,13 @@
   S.clock = () => ac ? ac.currentTime - S.latency() - S.offset : performance.now() / 1000 - S.offset;
   let songSrc = null, songT0 = 0;
   // lead = seconds before the piano begins, so the first notes can slide in from the top of the lane
-  S.songStart = (lead) => {
-    lead = lead || 0.04;
+  let songRate = 1;
+  S.songStart = (lead, rate) => {
+    lead = lead || 0.04; songRate = rate || 1;
     if (!ac || !buffers.piano) { songT0 = S.clock() + lead; return songT0; }
     S.songStop();
     const T = ac.currentTime + lead;
-    const src = ac.createBufferSource(); src.buffer = buffers.piano;
+    const src = ac.createBufferSource(); src.buffer = buffers.piano; src.playbackRate.value = songRate;
     const g = ac.createGain(); g.gain.value = 1;
     src.connect(g); g.connect(bus.piano); g.connect(bus.rev);
     src.start(T); songSrc = { s: src, g }; songT0 = T;
@@ -142,36 +143,37 @@
     opt = opt || {};
     const p = D.PHRASE[i], gm = opt.auto ? 0.6 : 1, now = ac.currentTime + 0.004;
     if (T === undefined) T = songT0;
+    const rate = opt.rate || songRate;   // song speed: recording seconds per real second
     if (S.voice !== 'vocals' || !buffers.vocals) {
-      synthVoice(p, Math.max(now, T + p.t), S.voice === 'vocals' ? 'box' : S.voice, gm);
+      synthVoice(p, Math.max(now, T + p.t / rate), S.voice === 'vocals' ? 'box' : S.voice, gm);
     } else {
       // Each sung word keeps going past its own end, so a missed next word never chops the line.
       // When the next word is hit, the tail hands off at exactly the spot where that word begins
       // (same recording, same timeline), so the join is seamless instead of doubled.
-      const from = p.s - 0.012, at = T + from, end = T + p.e + 0.55;
+      const from = p.s - 0.012, at = T + from / rate, end = T + (p.e + 0.55) / rate;
       if (end > now + 0.03) {
-        const skip = Math.max(0, now - at), start = at + skip;
+        const skip = Math.max(0, now - at), start = at + skip;   // skip is in real seconds
         if (lastVoc && lastVoc.T === T && lastVoc.i < i && lastVoc.end > start) {
           try { lastVoc.g.gain.cancelScheduledValues(start); lastVoc.g.gain.setTargetAtTime(0.0001, start, 0.012); lastVoc.src.stop(start + 0.1); } catch (e) {}
         }
-        const src = ac.createBufferSource(); src.buffer = buffers.vocals;
+        const src = ac.createBufferSource(); src.buffer = buffers.vocals; src.playbackRate.value = rate;
         const g = ac.createGain();
         g.gain.setValueAtTime(0.0001, start);
         g.gain.linearRampToValueAtTime(1.25 * gm, start + (skip ? 0.015 : 0.006));
-        g.gain.setValueAtTime(1.25 * gm, Math.max(start + 0.02, T + p.e + 0.2));
+        g.gain.setValueAtTime(1.25 * gm, Math.max(start + 0.02, T + (p.e + 0.2) / rate));
         g.gain.exponentialRampToValueAtTime(0.0001, end);
         src.connect(g); g.connect(bus.voice); g.connect(bus.rev);
-        src.start(start, from + skip, end - start + 0.05);
+        src.start(start, from + skip * rate, (end - start) * rate + 0.05);
         lastVoc = { src, g, i, T, end };
       }
     }
-    if (opt.crit) { const t = Math.max(now, T + p.t); tone({ f: mtof(p.sing[0] + 36), type: 'sine', t, len: 0.05, vol: 0.1, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); tone({ f: mtof(p.sing[0] + 43), type: 'sine', t: t + 0.06, len: 0.05, vol: 0.07, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); }
+    if (opt.crit) { const t = Math.max(now, T + p.t / rate); tone({ f: mtof(p.sing[0] + 36), type: 'sine', t, len: 0.05, vol: 0.1, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); tone({ f: mtof(p.sing[0] + 43), type: 'sine', t: t + 0.06, len: 0.05, vol: 0.07, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); }
     if (S.tts && !opt.auto && root.speechSynthesis) {
       try { root.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(p.w); u.rate = 1.6; u.pitch = 1.3; u.volume = vol.voice * vol.master; root.speechSynthesis.speak(u); } catch (e) {}
     }
   };
   // a single word on its own, outside a song (logo easter egg)
-  S.word = (i) => { if (!ac) return; const p = D.PHRASE[i]; S.vocal(i, ac.currentTime + 0.01 - (p.s - 0.012)); };
+  S.word = (i) => { if (!ac) return; const p = D.PHRASE[i]; S.vocal(i, ac.currentTime + 0.01 - (p.s - 0.012), { rate: 1 }); };
   // the full recording with vocals (intro)
   let fullSrc = null;
   S.playFull = (when) => {

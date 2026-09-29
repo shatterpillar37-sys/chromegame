@@ -29,11 +29,11 @@ for (t = 0; t < HOURS * 3600; t += dt) {
   else {
     const st = C.songTime();
     D.PHRASE.forEach((p, k) => {
-      if (song.hits[k] || song.tried?.[k] || st + dt < p.t) return;
+      if (song.hits[k] || song.tried?.[k] || st + dt * song.speed < p.t) return;
       (song.tried = song.tried || {})[k] = 1;
       if (C.rand() > ACC) return;
       const jitter = (C.rand() - 0.5) * (C.rand() < 0.6 ? 0.12 : 0.26);
-      const real = C.clock; C.clock = () => song.t0 + p.t + jitter; C.tap(); C.clock = real;
+      const real = C.clock; C.clock = () => song.t0 + (p.t + jitter) / song.speed; C.tap(); C.clock = real;
     });
   }
   C.tick(dt);

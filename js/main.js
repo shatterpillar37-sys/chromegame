@@ -46,7 +46,7 @@
   // the song: one click plays the piano, every on-beat click after that is a sung word
   function startSong(auto) {
     if (C.song()) return;
-    const T = Snd.songStart(D.LEAD_IN);
+    const T = Snd.songStart(D.LEAD_IN, C.speed());
     C.startSong(T, auto);
     Snd.duck(true);
     U.songStart();
@@ -73,6 +73,11 @@
   });
   C.on('miss', (lane, wrong) => { U.miss(wrong); Snd.fx('miss'); St.flinch(); });
   C.on('wordMiss', (k) => U.wordMiss(k));
+  C.on('speed', (sp, prev) => {
+    const p = otPos();
+    if (sp > prev) { St.float('SPEED UP! x' + sp.toFixed(2), p.x, p.top - 50, { size: 30, color: '#4cc9f0', vy: 50, life: 1.6, force: true }); Snd.fx('star'); }
+    else St.float('Tempo reset', p.x, p.top - 50, { size: 20, color: '#b9addf', vy: 40, life: 1.2, force: true });
+  });
   C.on('songEnd', (val, q, mine) => {
     Snd.duck(false);
     if (q < 0 && mine === 0 && S().songs <= 3 && !S().stats.hits) U.banner('HOW TO SING', 'Press the keys on the beat!', ' When a falling word lands on its keycap on the left, press that key (' + [0, 1, 2, 3].map(U.laneKey).join(' ') + ').', 7000);
