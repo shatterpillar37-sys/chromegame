@@ -59,7 +59,7 @@
     walker.animate(bob, { duration: arrive, easing: 'linear', fill: 'forwards' });
     later(arrive, () => {
       camSpeed = 0; walker.style.opacity = 0; stander.style.opacity = 1;
-      stander.animate([{ transform: 'translateX(-50%) scaleX(-1) scale(1.06,.94)' }, { transform: 'translateX(-50%) scaleX(-1)' }], { duration: 250 });
+      stander.animate([{ transform: 'translateX(-50%) scale(1.06,.94)' }, { transform: 'translateX(-50%)' }], { duration: 250 });
     });
     // two tuxedo men sneak in from the left during "I am Sneakers"
     later(offset + D.PHRASE[6].t * 1000 - 150, () => {
@@ -76,8 +76,8 @@
       if (i === 10) {
         // "Toole!": he spins round to face up the street and the shockwave blows the tuxedo men away
         stander.animate([
-          { transform: 'translateX(-50%) scaleX(-1)' }, { transform: 'translateX(-50%) translateY(-40px) scaleX(0) rotate(-6deg)', offset: 0.4 },
-          { transform: 'translateX(-50%) translateY(-24px) scaleX(1)', offset: 0.7 }, { transform: 'translateX(-50%) scaleX(1)' },
+          { transform: 'translateX(-50%)' }, { transform: 'translateX(-50%) translateY(-40px) scaleX(0) rotate(6deg)', offset: 0.4 },
+          { transform: 'translateX(-50%) translateY(-24px) scaleX(-1)', offset: 0.7 }, { transform: 'translateX(-50%) scaleX(-1)' },
         ], { duration: 460, easing: 'ease-out' });
         stander.classList.add('turned');
         [t1, t2].forEach((el, k) => el.animate([{ transform: 'none' }, { transform: `translate(${-50 - k * 20}vw, -60vh) rotate(${-540 - k * 180}deg)` }], { duration: 1100, easing: 'cubic-bezier(.2,.6,.4,1)', fill: 'forwards' }));

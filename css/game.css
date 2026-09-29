@@ -113,8 +113,12 @@ main#main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px
 #otoole .rig::after { content: ''; position: absolute; inset: -6% -30% 0; } /* generous hit area */
 #otoole img.pose { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); display: none; pointer-events: none; filter: drop-shadow(0 4px 0 rgba(27,19,48,.35)); }
 #otoole img.pose.on { display: block; animation: breathe 2.4s ease-in-out infinite; transform-origin: 50% 100%; }
+/* the standing and "No!" drawings face left; mirror them so he always faces up the street (right), like the walking one */
+#otoole img.pose[data-pose="stand"], #otoole img.pose[data-pose="no"] { transform: translateX(-50%) scaleX(-1); }
 #otoole img.pose[data-pose="walk"].on, #otoole img.pose[data-pose="no"].on { animation: none; }
-@keyframes breathe { 0%, 100% { transform: translateX(-50%) scale(1, 1); } 50% { transform: translateX(-50%) scale(1.012, .988); } }
+#otoole.walking img.pose[data-pose="walk"].on { animation: strut var(--strut, .5s) ease-in-out infinite; }
+@keyframes strut { 0%, 100% { transform: translateX(-50%) translateY(0) rotate(0); } 25% { transform: translateX(-50%) translateY(-5%) rotate(2deg); } 50% { transform: translateX(-50%) translateY(0) rotate(0); } 75% { transform: translateX(-50%) translateY(-3%) rotate(-2deg); } }
+@keyframes breathe { 0%, 100% { transform: translateX(-50%) scale(-1, 1); } 50% { transform: translateX(-50%) scale(-1.012, .988); } }
 .otshadow { position: absolute; left: 50%; bottom: -8px; width: 140%; height: 18px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(0,0,0,.35), transparent); }
 #otoole.asleep .rig { transform: rotate(-4deg); }
 #otoole.asleep img.pose.on { animation-duration: 4s; filter: drop-shadow(0 4px 0 rgba(27,19,48,.35)) brightness(.85); }
@@ -583,7 +587,8 @@ textarea { width: 100%; min-height: 70px; resize: vertical; }
 @keyframes wordsOut { from { transform: scale(1) rotate(var(--rot, -2deg)); opacity: 1; } to { transform: translateY(-60px) scale(.7) rotate(var(--rot, -2deg)); opacity: 0; } }
 @keyframes slam { 0% { transform: scale(2.6) rotate(-10deg); opacity: 0; } 60% { transform: scale(.9) rotate(2deg); opacity: 1; } 100% { transform: scale(1) rotate(var(--rot, -2deg)); opacity: 1; } }
 .in-walker, .in-stander { position: absolute; bottom: 14%; left: 50%; height: min(42vh, 360px); transform: translateX(-50%) scaleX(-1); opacity: 0; filter: drop-shadow(0 6px 0 rgba(0,0,0,.4)); z-index: 2; }
-.in-stander.turned { transform: translateX(-50%) scaleX(1); }
+.in-stander { transform: translateX(-50%); }
+.in-stander.turned { transform: translateX(-50%) scaleX(-1); }
 .in-stander { height: min(40vh, 340px); }
 .in-title { position: absolute; z-index: 6; left: 50%; top: 46%; transform: translate(-50%, -50%) scale(0); text-align: center; display: grid; justify-items: center; gap: 6px; }
 .in-title.on { animation: titleIn .8s cubic-bezier(.3,1.6,.5,1) forwards; }
