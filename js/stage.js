@@ -371,17 +371,43 @@
   St.SCENE_COUNT = SCENES.length;
   const PARALLAX = { far: 0.15, mid: 0.45, near: 1 };
   let layers = null, TW = 0;
-  function buildLayers(i) {
-    const sc = SCENES[i];
-    TW = Math.max(900, Math.ceil(W * 1.25));
-    const mk = (w, fn) => { const cv = document.createElement('canvas'); cv.width = Math.round(w * DPR); cv.height = Math.round(H * DPR); const x = cv.getContext('2d'); x.scale(DPR, DPR); fn(x); return cv; };
+  function layersFor(i, w, h, g, dpr) {
+    const sc = SCENES[i], tw = Math.max(900, Math.ceil(w * 1.25));
+    const mk = (cw, fn) => { const cv = document.createElement('canvas'); cv.width = Math.round(cw * dpr); cv.height = Math.round(h * dpr); const x = cv.getContext('2d'); x.scale(dpr, dpr); fn(x); return cv; };
     return {
-      sky: mk(W, x => sc.sky(x, W, H, groundY)),
-      far: mk(TW, x => sc.far(x, TW, H, groundY)),
-      mid: mk(TW, x => sc.mid(x, TW, H, groundY)),
-      near: mk(TW, x => sc.near(x, TW, H, groundY)),
+      tw, dpr, w, h, g, i,
+      sky: mk(w, x => sc.sky(x, w, h, g)),
+      far: mk(tw, x => sc.far(x, tw, h, g)),
+      mid: mk(tw, x => sc.mid(x, tw, h, g)),
+      near: mk(tw, x => sc.near(x, tw, h, g)),
     };
   }
+  function drawLayers(ctx, L, cam, time) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(L.sky, 0, 0);
+    ['far', 'mid', 'near'].forEach(k => {
+      const off = ((cam * PARALLAX[k]) % L.tw + L.tw) % L.tw, px = Math.round(off * L.dpr);
+      ctx.drawImage(L[k], -px, 0);
+      if (L.tw - off < L.w) ctx.drawImage(L[k], Math.round((L.tw - off) * L.dpr), 0);
+    });
+    ctx.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
+    SCENES[L.i].dyn(ctx, L.w, L.h, L.g, time, cam);
+  }
+  function buildLayers(i) { const L = layersFor(i, W, H, groundY, DPR); TW = L.tw; return L; }
+  // a standalone scrolling street for other screens (the intro)
+  St.backdrop = (cv, sceneI) => {
+    let L = null, cam = 0, time = 0;
+    const ctx = cv.getContext('2d');
+    const build = () => {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(root.devicePixelRatio || 1, 2);
+      cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+      L = layersFor(sceneI || 0, r.width, r.height, r.height * 0.86, dpr);
+    };
+    return {
+      resize: build,
+      frame(dt, speed) { if (!L) build(); cam += (speed || 0) * dt; time += dt; drawLayers(ctx, L, cam, time); },
+    };
+  };
   St.setScene = (i) => { sceneIdx = i % SCENES.length; layers = null; };
   // the camera follows O'Toole up the street
   St.camX = 0; let camTarget = 0;
@@ -390,15 +416,7 @@
   function drawScene(dt) {
     if (!layers) layers = buildLayers(sceneIdx);
     St.camX += (camTarget - St.camX) * Math.min(1, dt * 7);
-    bx.setTransform(1, 0, 0, 1, 0, 0);
-    bx.drawImage(layers.sky, 0, 0);
-    ['far', 'mid', 'near'].forEach(k => {
-      const off = ((St.camX * PARALLAX[k]) % TW + TW) % TW, px = Math.round(off * DPR);
-      bx.drawImage(layers[k], -px, 0);
-      if (TW - off < W) bx.drawImage(layers[k], Math.round((TW - off) * DPR), 0);
-    });
-    bx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    SCENES[sceneIdx].dyn(bx, W, H, groundY, St.q.bgAnim && !St.q.reduce ? t : 0, St.camX);
+    drawLayers(bx, layers, St.camX, St.q.bgAnim && !St.q.reduce ? t : 0);
   }
 
   /* ---------------- the crowd: your buildings, hopping along ---------------- */
