@@ -2,103 +2,114 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sneakers O'Toole: Never Take Them Off</title>
-<meta name="theme-color" content="#1b1f3b">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sneakers O'Toole</title>
+<meta name="description" content="An incremental game about a man who will not take his sneakers off.">
+<meta name="theme-color" content="#140f2e">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Lilita+One&display=swap">
+<link rel="stylesheet" href="css/game.css">
 </head>
 <body>
-<header>
-  <h1>Sneakers O'Toole <small>Never Take Them Off <em>(demo)</em></small></h1>
-  <div class="counter">
-    <div class="big"><span id="steps">0</span> <span class="unit">Steps</span></div>
-    <div class="sub"><span id="sps">0</span>/sec · <span id="sole">0</span> Sole Power</div>
-  </div>
-  <div class="tools">
-    <button id="mute" title="Toggle sound">🔊</button>
-    <button id="menuBtn" title="Save / Export / Import / Reset">⚙️</button>
-  </div>
-</header>
-
-<main>
-  <section class="stage" id="stage" data-scene="0">
-    <div class="scene-label" id="sceneLabel">Scene: Quahog</div>
-    <div class="bubble" id="bubble">♪ La la, my sneakers stay on! ♪</div>
-    <div class="ground"></div>
-    <div id="pursuers"></div>
-    <button class="otoole" id="otoole" aria-label="Hop!">
-      <svg viewBox="0 0 120 170" width="100%" height="100%">
-        <ellipse class="shadow" cx="60" cy="163" rx="34" ry="6" fill="rgba(0,0,0,.25)"/>
-        <g class="body">
-          <rect x="42" y="96" width="14" height="42" rx="6" fill="#33406b"/>
-          <rect x="64" y="96" width="14" height="42" rx="6" fill="#33406b"/>
-          <!-- sneakers -->
-          <path d="M30 156 q0-18 22-18 h6 v18 z" fill="#fff" stroke="#222" stroke-width="3"/>
-          <path d="M62 156 v-18 h6 q22 0 22 18 z" fill="#fff" stroke="#222" stroke-width="3"/>
-          <path d="M32 150 h26 M62 150 h26" stroke="#e63946" stroke-width="5" stroke-linecap="round"/>
-          <rect x="30" y="155" width="28" height="5" rx="2" fill="#222"/>
-          <rect x="62" y="155" width="28" height="5" rx="2" fill="#222"/>
-          <!-- torso + arms -->
-          <rect x="36" y="58" width="48" height="46" rx="14" fill="#2ec4b6" stroke="#1a7f75" stroke-width="3"/>
-          <path d="M38 66 q-16 10 -12 28" stroke="#f4c9a0" stroke-width="9" fill="none" stroke-linecap="round"/>
-          <path d="M82 66 q16 -14 20 -30" stroke="#f4c9a0" stroke-width="9" fill="none" stroke-linecap="round"/>
-          <!-- head -->
-          <circle cx="60" cy="36" r="26" fill="#f4c9a0" stroke="#c99b6d" stroke-width="2"/>
-          <path d="M34 30 q2-24 28-24 q26 0 26 24 q-12-12-28-10 q-16 0-26 10z" fill="#7a4a21"/>
-          <circle cx="50" cy="38" r="3.4" fill="#222"/><circle cx="70" cy="38" r="3.4" fill="#222"/>
-          <path d="M46 47 q14 14 28 0 z" fill="#fff" stroke="#222" stroke-width="2.5" stroke-linejoin="round"/>
-        </g>
-      </svg>
+<!--BODY-->
+<div id="app" class="booting">
+  <header id="top">
+    <button id="logo" class="logo" aria-label="Sneakers O'Toole">
+      <span class="logo-snk" id="logoSnk"></span>
+      <span class="logo-txt">Sneakers<br><em>O'Toole</em></span>
     </button>
-    <div class="hud">
-      <div class="heat">
-        <div class="heat-label">🔥 Heat <span id="heatNote"></span></div>
-        <div class="heat-bar"><div id="heatFill"></div></div>
-      </div>
-      <div class="hint" id="hint">Click O'Toole to hop. Click the angry men to dodge them!</div>
+    <div class="bank" id="bank">
+      <div class="bank-main"><span class="bank-ico" id="bankIco"></span><span id="steps">0</span></div>
+      <div class="bank-sub"><b id="sps">0</b> steps per second <span id="spsTags"></span></div>
     </div>
-  </section>
+    <div class="chips" id="chips"></div>
+    <div class="tools">
+      <button id="btnWheel" class="tool" aria-label="Wheel of Laces"><span class="ti" id="icoWheel"></span><i class="dot" id="wheelDot" hidden>1</i></button>
+      <button id="btnMute" class="tool" aria-label="Mute"><span class="ti" id="icoMute"></span></button>
+      <button id="btnSettings" class="tool" aria-label="Settings"><span class="ti" id="icoGear"></span></button>
+    </div>
+  </header>
 
-  <section class="panel">
-    <nav class="tabs">
-      <button data-tab="shop" class="on">Shop</button>
-      <button data-tab="tree">Upgrade Tree</button>
-      <button data-tab="cut">Cutaway ✂️</button>
-    </nav>
-    <div id="tab-shop" class="tab on">
-      <div class="buyamt">Buy: <button data-amt="1" class="on">x1</button><button data-amt="10">x10</button></div>
-      <div id="shop"></div>
-    </div>
-    <div id="tab-tree" class="tab"><div id="tree"></div></div>
-    <div id="tab-cut" class="tab">
-      <div class="card">
-        <h3>Cutaway</h3>
-        <p>Cut to a new scene. You lose Steps, buildings and tree upgrades, but keep <b>Sole Power</b>: every point gives <b>+25%</b> to everything, forever.</p>
-        <p>This run you've earned <b id="runTotal">0</b> Steps.</p>
-        <p>Cutaway now for <b id="cutGain">0</b> Sole Power. <small>(needs 100,000 Steps in a run)</small></p>
-        <button id="cutBtn" class="big-btn" disabled>Cut to next scene</button>
-        <hr>
-        <p class="stats">Cutaways: <b id="stCuts">0</b> · Dodges: <b id="stDodge">0</b> · Lifetime Steps: <b id="stLife">0</b></p>
+  <main id="main">
+    <section id="stage" aria-label="Stage">
+      <canvas id="bg"></canvas>
+      <div id="sprites">
+        <button id="otoole" aria-label="Sing">
+          <div class="rig">
+            <div class="otshadow"></div>
+            <img class="pose" data-pose="stand" src="img/otoole-stand.png" alt="" draggable="false">
+            <img class="pose" data-pose="walk" src="img/otoole-walk.png" alt="" draggable="false">
+            <img class="pose" data-pose="no" src="img/otoole-no.png" alt="" draggable="false">
+          </div>
+        </button>
       </div>
-    </div>
-  </section>
-</main>
+      <canvas id="fx"></canvas>
+      <div id="flash"></div>
+      <div id="hud">
+        <div id="lyrics" class="lyrics"></div>
+        <div id="buffs" class="buffs"></div>
+        <div id="bubble" class="bubble"><span></span></div>
+        <div id="noBurst" class="no-burst">NO!</div>
+        <div id="combo" class="combo"><div class="combo-flame"></div><div class="combo-n">x1.00</div><div class="combo-c">0 combo</div></div>
+        <div id="bossbar" class="bossbar" hidden><div class="bb-name"></div><div class="bb-hp"><i></i></div><div class="bb-time"></div></div>
+        <div id="banner" class="banner"><div class="bn-tag">BREAKING</div><div class="bn-txt"></div></div>
+        <div id="meters" class="meters">
+          <div class="meter heat" data-tip="heat"><span class="m-ico" id="icoHeat"></span><div class="m-bar"><i id="heatFill"></i></div></div>
+          <div class="meter bossm" data-tip="bossmeter"><span class="m-ico" id="icoBoss"></span><div class="pips" id="bossPips"></div></div>
+        </div>
+        <div id="sceneTag" class="scene-tag"></div>
+        <div id="chTag" class="ch-tag" hidden></div>
+      </div>
+    </section>
 
+    <section id="panel">
+      <nav id="tabs" role="tablist"></nav>
+      <div id="views">
+        <div class="view" id="v-shop"></div>
+        <div class="view" id="v-tree"></div>
+        <div class="view" id="v-sneakers"></div>
+        <div class="view" id="v-awards"></div>
+        <div class="view" id="v-cut"></div>
+        <div class="view" id="v-stats"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="ticker"><div class="tk-label">QUAHOG NEWS</div><div class="tk-track"><span id="tickText"></span></div></footer>
+</div>
+
+<div id="tip" role="tooltip"></div>
 <div id="toasts"></div>
-<dialog id="menu">
-  <h3>Menu</h3>
-  <div class="menu-btns">
-    <button id="saveBtn">Save now</button>
-    <button id="exportBtn">Export save</button>
-    <button id="importBtn">Import save</button>
-    <button id="resetBtn" class="danger">Reset everything</button>
-  </div>
-  <textarea id="saveText" rows="4" placeholder="Export text appears here. Paste a save here, then press Import."></textarea>
-  <div class="menu-btns"><button id="closeMenu">Close</button></div>
-</dialog>
+<div id="overlay" hidden></div>
+<div id="cutFx" hidden><div class="cf-iris"></div><div class="cf-card"><small>CUTAWAY TO</small><b></b></div></div>
 
-<script src="game.js"></script>
+<div id="intro">
+  <div class="in-gate" id="inGate">
+    <div class="in-logo"><span class="in-snk" id="gateSnk"></span><h1>Sneakers<br><em>O'Toole</em></h1><p>The incremental game</p></div>
+    <button class="btn big" id="inStart">Press to start</button>
+    <small>Sound on for the full experience</small>
+  </div>
+  <div class="in-show" id="inShow" hidden>
+    <div class="in-spot"></div>
+    <div class="in-words" id="inWords"></div>
+    <img class="in-walker" id="inWalker" src="img/otoole-walk.png" alt="">
+    <img class="in-stander" id="inStander" src="img/otoole-stand.png" alt="">
+    <div class="in-title" id="inTitle"><span class="in-snk" id="titleSnk"></span><h1>Sneakers<br><em>O'Toole</em></h1><p>The incremental game</p><button class="btn big" id="inPlay">Play</button></div>
+  </div>
+  <button class="in-skip" id="inSkip" hidden>Skip ›</button>
+</div>
+<!--/BODY-->
+<script src="js/assets.js"></script>
+<script src="js/data.js"></script>
+<script src="js/core.js"></script>
+<script src="js/art.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/stage.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/intro.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>
