@@ -66,6 +66,8 @@
     St.burst('confetti', p.x, p.top, q === 2 ? 60 : 24, { speed: 380, gravity: 600, size: 10, colors: ['#ff4d6d', '#ffd23f', '#4cc9f0', '#3ddc97', '#b86bff'], life: 1.4, angle: -Math.PI / 2, spread: 2.2 });
     if (q === 2) St.shake(6);
     U.bumpBank();
+    const st = S().stats;
+    if (st.verses === 4 && !st.perfect) setTimeout(() => U.banner('TIP', 'Sing it in rhythm!', ' Click along with the song\'s beat for a PERFECT VERSE worth x3. The bouncing ball keeps time.', 7000), 900);
   });
   C.on('spawn', (e) => {
     Snd.fx('spawn');

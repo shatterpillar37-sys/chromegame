@@ -475,7 +475,8 @@ textarea { width: 100%; min-height: 70px; resize: vertical; }
 #intro { position: fixed; inset: 0; z-index: 90; background: #0a0716; overflow: hidden; display: grid; place-items: center; }
 #intro.gone { animation: introOut .7s ease-in forwards; pointer-events: none; }
 @keyframes introOut { to { opacity: 0; transform: scale(1.1); } }
-.in-gate { text-align: center; display: grid; gap: 22px; justify-items: center; padding: 20px; animation: fadeIn .8s; }
+.in-gate { text-align: center; display: grid; gap: 22px; justify-items: center; padding: 20px; animation: fadeIn .8s; position: relative; }
+.in-gate::before { content: ''; position: fixed; left: 50%; top: 45%; width: 160vmax; height: 160vmax; margin: -80vmax 0 0 -80vmax; background: repeating-conic-gradient(rgba(255,159,28,.07) 0 9deg, transparent 9deg 22deg); border-radius: 50%; animation: spin 60s linear infinite; z-index: -1; -webkit-mask: radial-gradient(closest-side, #000 20%, transparent 75%); mask: radial-gradient(closest-side, #000 20%, transparent 75%); }
 .in-gate small { color: var(--dim); font-weight: 600; }
 .in-logo h1, .in-title h1 { margin: 0; font: 400 clamp(3rem, 10vw, 6.4rem)/.9 var(--font-d); color: #fff; text-shadow: 0 6px 0 var(--ink), 0 0 40px rgba(255,159,28,.35); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; transform: rotate(-3deg); }
 .in-logo h1 em, .in-title h1 em { font-style: normal; color: var(--hair); display: inline-block; font-size: 1.15em; }
@@ -3741,6 +3742,8 @@ window.ASSETS={
     St.burst('confetti', p.x, p.top, q === 2 ? 60 : 24, { speed: 380, gravity: 600, size: 10, colors: ['#ff4d6d', '#ffd23f', '#4cc9f0', '#3ddc97', '#b86bff'], life: 1.4, angle: -Math.PI / 2, spread: 2.2 });
     if (q === 2) St.shake(6);
     U.bumpBank();
+    const st = S().stats;
+    if (st.verses === 4 && !st.perfect) setTimeout(() => U.banner('TIP', 'Sing it in rhythm!', ' Click along with the song\'s beat for a PERFECT VERSE worth x3. The bouncing ball keeps time.', 7000), 900);
   });
   C.on('spawn', (e) => {
     Snd.fx('spawn');
