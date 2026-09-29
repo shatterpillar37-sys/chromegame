@@ -190,15 +190,19 @@
   let lineUntil = 0;
   S.hasLine = (id) => !!buffers['line_' + id];
   S.lineBusy = () => ac ? Math.max(0, lineUntil - ac.currentTime) : 0;
-  S.line = (id, force) => {
+  // rate < 1 plays the line slower and lower (bosses get a deeper voice)
+  S.line = (id, force, rate) => {
     if (!ac) return 0;
     const buf = buffers['line_' + id]; if (!buf) return 0;
-    const now = ac.currentTime;
+    const now = ac.currentTime; rate = rate || 1;
     if (!force && now < lineUntil) return 0;
-    const src = ac.createBufferSource(); src.buffer = buf;
-    const g = ac.createGain(); g.gain.value = 1; src.connect(g); g.connect(bus.no);
-    src.start(now + 0.01); lineUntil = now + buf.duration;
-    return buf.duration;
+    const src = ac.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
+    const g = ac.createGain(); g.gain.value = rate < 1 ? 1.2 : 1; src.connect(g);
+    if (rate < 1) {   // a little low-end weight for the big guys
+      const lo = ac.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 220; lo.gain.value = 6; g.connect(lo); lo.connect(bus.no);
+    } else g.connect(bus.no);
+    src.start(now + 0.01); lineUntil = now + buf.duration / rate;
+    return buf.duration / rate;
   };
 
   // computer-voice fallback for lines with no recording yet
@@ -211,9 +215,9 @@
   }
   if (root.speechSynthesis) { try { root.speechSynthesis.onvoiceschanged = () => { speechVoice = pickVoice(); }; } catch (e) {} }
   let speakUntil = 0;
-  S.say = (id, text, force) => {
+  S.say = (id, text, force, rate) => {
     if (S.lineVoice === 'off') return 0;
-    if (S.lineVoice !== 'speech' && buffers['line_' + id]) return S.line(id, force);
+    if (S.lineVoice !== 'speech' && buffers['line_' + id]) return S.line(id, force, rate);
     const ss = root.speechSynthesis; if (!ss || !text) return 0;
     const now = performance.now();
     if (!force && now < speakUntil) return 0;
@@ -221,7 +225,7 @@
       ss.cancel();
       const u = new SpeechSynthesisUtterance(text);
       speechVoice = speechVoice || pickVoice(); if (speechVoice) u.voice = speechVoice;
-      u.pitch = 0.65; u.rate = 1.05; u.volume = Math.min(1, vol.no * vol.master);
+      u.pitch = rate && rate < 1 ? 0.1 : 0.65; u.rate = rate && rate < 1 ? 0.85 : 1.05; u.volume = Math.min(1, vol.no * vol.master);
       ss.speak(u);
       const est = 0.35 + text.length * 0.065;
       speakUntil = now + est * 1000;

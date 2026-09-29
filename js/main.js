@@ -100,33 +100,34 @@
       setTimeout(() => { if (S().enemies.includes(e) && !e.dead) tuxLine(e, id, ms, true); }, busy * 1000 + 150);
       return;
     }
-    const len = Snd.say(id, D.LINES[id], id === 'letgo' || retry);
+    const len = Snd.say(id, D.LINES[id], id === 'letgo' || retry, e.boss ? 0.74 : 1);
     St.enemySay(e, D.LINES[id], ms || Math.max(2400, (len + 0.9) * 1000));
   }
   C.on('spawn', (e) => {
     Snd.fx('spawn');
-    if (e.type === 'golden') { U.banner('RARE', 'A Golden Tuxedo!', ' Click him to make him give up before he runs off. He drops 3 Shoeboxes!', 4000); St.enemySay(e, 'Catch me if you can!'); return; }
+    if (e.type === 'golden') { U.banner('RARE', 'A Golden Tuxedo is after you!', ' Keep singing to outrun him and he drops 3 Shoeboxes.', 4500); St.enemySay(e, 'Catch me if you can!'); return; }
     setTimeout(() => { if (S().enemies.includes(e)) tuxLine(e, 'hey'); }, 450);
-    if (S().stats.enemies === 0 && !S().enemies.some(x => x !== e)) U.banner('LOOK OUT', 'A tuxedo man wants the sneakers!', ' Click him and O\'Toole hops out of reach. Keep dodging until he gives up.', 6500);
+    if (S().stats.enemies === 0 && !S().enemies.some(x => x !== e)) U.banner('LOOK OUT', 'A tuxedo man is chasing you!', ' Sing notes to run up the street. Get far enough ahead and he gives up.', 7000);
   });
   St.onNear = (e) => { if (!e.dead) tuxLine(e, 'said'); };
-  C.on('bossSpawn', (e) => { Snd.fx('boss'); St.shake(12); U.banner('BOSS', e.name, ' is after the sneakers! Wear him out before his timer runs out.', 5000); });
+  C.on('bossSpawn', (e) => { Snd.fx('boss'); St.shake(12); U.banner('BOSS', e.name + ' blocks the street!', ' Sing notes to run circles around him until he is too dizzy to stand.', 6000); });
+  C.on('stride', (kind) => { if (kind === 'run') St.advance(); });
   C.on('hit', (e, dmg, src) => {
     St.enemyHit(e, dmg, src === 'crit');
-    Snd.fx('whoosh');
+    if (e.boss) { Snd.fx('whoosh'); return; }
     if (!e._saidNo && src !== 'guard' && src !== 'shock') { e._saidNo = 1; Snd.no(); St.sayNo(); U.noBurst('NO!'); }
   });
   C.on('defeat', (e, r) => {
     St.enemyGiveUp(e);
     const giveUpLine = e.type !== 'golden' && (e.boss || Math.random() < 0.45);
-    if (giveUpLine) setTimeout(() => tuxLine(e, 'letgo', 4200), 250);
+    if (giveUpLine) setTimeout(() => tuxLine(e, 'letgo', 4600), e.boss ? 1300 : 250);
     else if (!e._saidNo) { Snd.no(e.boss); St.sayNo(); U.noBurst('NO!'); }
-    St.shake(e.boss ? 8 : 3);
+    St.shake(e.boss ? 4 : 2);
     const p = enemyPos(e);
     St.float('+' + f(r.steps), p.x, p.y, { size: e.boss ? 36 : 26, color: '#3ddc97', vy: 80, life: 1.3 });
     if (r.boxes) St.float(r.boxes > 1 ? '+' + r.boxes + ' Shoeboxes!' : '+1 Shoebox!', p.x, p.y - 36, { size: 22, color: '#ff9f1c', vy: 60, life: 1.6, force: true });
     if (r.gl) St.float('+' + r.gl + ' Golden Lace' + (r.gl > 1 ? 's' : ''), p.x, p.y - 70, { size: 24, color: '#ffd23f', vy: 50, life: 1.8, force: true });
-    if (e.boss) { U.confetti(120); U.banner('ESCAPED', e.name + ' gave up the chase!', ' +' + r.gl + ' Golden Laces and 2 Shoeboxes.', 5000); }
+    if (e.boss) { U.confetti(120); U.banner('DIZZY!', e.name + ' fell over!', ' +' + r.gl + ' Golden Laces and 2 Shoeboxes.', 5000); }
     U.bumpBank();
   });
   C.on('tug', (e, loss) => {
@@ -214,7 +215,6 @@
     $('#sprites').addEventListener('pointerdown', (e) => {
       if (!running) return;
       const en = e.target.closest('.enemy');
-      if (en && !en.classList.contains('dead')) { e.preventDefault(); C.kick(+en.dataset.id); return; }
       if (e.target.closest('.golden-sneaker')) { e.preventDefault(); C.clickGolden(); return; }
       const cam = e.target.closest('.cam'); if (cam) { e.preventDefault(); C.clickCam(+cam.dataset.id); return; }
     });
@@ -265,7 +265,6 @@
       const k = U.normKey(e.key), K = U.set.keys;
       for (let i = 0; i < 4; i++) if (k === K['lane' + i]) { e.preventDefault(); if (!e.repeat) G.lane(i); return; }
       if (k === K.start) { e.preventDefault(); if (!e.repeat) sing(e); return; }
-      if (k === K.dodge) { const t = S().enemies.filter(x => !x.flee && !x.dead).sort((a, b) => b.p - a.p)[0]; if (t) C.kick(t.id); }
       if (k === K.golden) C.clickGolden();
       if (k === K.mute) { U.set.muted = !U.set.muted; U.applySet(); }
       if (k === K.buy) { const b = D.BUILDINGS.filter((x, i) => C.bldUnlocked(i)).sort((a, c) => C.cost(a, 1) - C.cost(c, 1))[0]; if (b && C.buy(b.id, 1)) U.render(true); }

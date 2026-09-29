@@ -242,8 +242,9 @@
   };
 
   /* ---------------- singing: a rhythm game over the piano ----------------
-     Clicking O'Toole starts the song. While it plays, a click within a word's
-     window sings that word (Perfect or Good) and earns Steps; any other click is a miss. */
+     Clicking O'Toole (or Space) starts the song. While it plays, pressing a word's key within its
+     window sings that word (Perfect or Good) and earns Steps; any other press is a miss.
+     Every sung note also moves O'Toole: up the street away from chasers, or around a boss. */
   C.clock = () => S.time;            // replaced by the audio clock in the browser
   C.LANES = 4;
   let song = null;
@@ -312,6 +313,7 @@
     S.stats.hits++; if (grade === 'perfect') S.stats.perfectHits++;
     const { val, crit } = award(best, grade, m);
     C.emit('word', best, val, crit, grade, voiced, t - D.PHRASE[best].t);
+    stride(false, crit);
     return { res: grade, idx: best, val, crit };
   };
   C.click = C.tap;  // older name
@@ -331,6 +333,7 @@
           song.hits[k] = 'auto';
           const { val } = award(k, 'auto', m);
           C.emit('word', k, val, false, 'auto', true, 0);
+          stride(true, false);
         } else {
           song.hits[k] = 'miss';
           if (S.combo >= 10) C.emit('comboEnd', S.combo);
@@ -364,7 +367,7 @@
     S.stats.verses++;
     if (q === 2) S.stats.perfect++;
     if (val > S.stats.bestVerse) S.stats.bestVerse = val;
-    if (m.verseShock) S.enemies.forEach(e => C.damage(e, m.kickDmg * 3, 'shock'));
+    if (m.verseShock) S.enemies.slice().forEach(e => C.damage(e, m.kickDmg * 3, 'shock'));
     // Shiny O'Toole: a very rare glow-up
     if (R() < (1 / 4096) * (1 + m.luck)) { S.shinyOToole = 60; C.refresh(); C.emit('shinyOToole'); C.unlock('egg_shiny'); }
     if (R() < 0.02 * m.box * (1 + m.luck)) { S.boxes++; C.emit('boxDrop', 1, 'verse'); }
@@ -382,42 +385,52 @@
     return base * m.heat * m.heatRate * (C.buffActive('conv') ? 3 : 1);
   };
   C.bossNeed = () => Math.round(12 * (S.locker.radar ? 0.7 : 1));
+  C.bossActive = () => S.enemies.find(e => e.boss && !e.dead);
+  // Chasers come from the left. e.gap is how far back they are: 1 = just off-screen, 0 = caught.
+  // Each note O'Toole sings moves him further up the street and widens the gap; past ESCAPE they give up.
+  // Bosses step in from the right and block the street; singing notes runs O'Toole around them until they get dizzy and fall.
+  C.ESCAPE = 1.05;
   function spawnEnemy(forceType) {
     const m = C.mods();
-    const bossReady = S.bossMeter >= C.bossNeed() && !S.enemies.some(e => e.boss);
+    const bossReady = S.bossMeter >= C.bossNeed() && !C.bossActive();
     let e;
-    const side = R() < 0.5 ? -1 : 1;
     if (bossReady && !forceType) {
       const bi = S.stats.bosses % D.BOSSES.length, bd = D.BOSSES[bi];
-      const hits = 22 + 4 * Math.min(S.stats.bosses, 10);
-      const hp = hits * m.kickDmg * (S.challenge === 'invasion' ? 2 : 1);
-      e = { id: S.eid++, type: 'boss', boss: bd.id, name: bd.name, look: bd.look, hp, max: hp, side, p: 0, spd: 0.09, timer: m.bossTime, big: 1 };
+      const laps = 16 + 3 * Math.min(S.stats.bosses, 10);
+      const hp = laps * m.kickDmg * (S.challenge === 'invasion' ? 2 : 1);
+      e = { id: S.eid++, type: 'boss', boss: bd.id, name: bd.name, look: bd.look, hp, max: hp, side: 1, p: 0, spd: 0.6, timer: m.bossTime, big: 1 };
       S.bossMeter = 0;
       C.emit('bossSpawn', e);
     } else {
       const pool = Object.entries(D.ENEMIES).filter(([k, t]) => S.stats.enemies >= (t.min || 0));
       const [k, t] = forceType ? [forceType, D.ENEMIES[forceType]] : pick(pool, ([k, t]) => t.w * (k === 'golden' ? (1 + m.luck) : 1));
       const hp = t.hp * Math.min(3, 1 + S.cuts * 0.08) * (S.challenge === 'invasion' ? 2 : 1);
-      e = { id: S.eid++, type: k, name: t.name, look: t.look, hp, max: hp, side, p: 0, spd: t.spd * (0.9 + R() * 0.25), big: t.big };
+      e = { id: S.eid++, type: k, name: t.name, look: t.look, hp, max: hp, side: -1, gap: 1, spd: t.spd * (0.9 + R() * 0.25), big: t.big };
     }
     S.enemies.push(e);
     C.emit('spawn', e);
     return e;
   }
   C.spawnEnemy = spawnEnemy;
+  // how far one sung note pushes a chaser back: tougher men keep pace better
+  C.pushFor = (e, m) => 0.12 * (m || C.mods()).kickDmg / Math.pow(e.max / 3, 0.6);
   C.damage = (e, dmg, src) => {
     if (!e || e.dead) return;
-    e.hp -= dmg;
+    if (e.boss) { e.hp -= dmg; C.emit('hit', e, dmg, src); if (e.hp <= 0) defeat(e); return; }
+    e.gap += C.pushFor(e) * dmg / C.mods().kickDmg;
     C.emit('hit', e, dmg, src);
-    if (e.hp <= 0) defeat(e);
+    if (e.gap >= C.ESCAPE) defeat(e);
   };
-  C.kick = (id) => {
-    const e = S.enemies.find(x => x.id === id); if (!e) return;
-    const m = C.mods();
-    let dmg = m.kickDmg, crit = false;
-    if (R() < m.crit * (1 + m.luck * 0.5)) { dmg *= 3; crit = true; }
-    C.damage(e, dmg, crit ? 'crit' : 'kick');
-  };
+  // every note O'Toole sings: circle the boss if one is blocking the street, otherwise stride away from the chasers
+  function stride(auto, crit) {
+    const m = C.mods(), power = m.kickDmg * (auto ? 0.5 : 1) * (crit ? 2 : 1);
+    const boss = C.bossActive();
+    if (boss && boss.p >= 1) { C.emit('stride', 'circle', boss); C.damage(boss, power, crit ? 'crit' : 'note'); return; }
+    C.emit('stride', 'run');
+    S.enemies.filter(e => !e.boss && !e.dead && !e.flee).forEach(e => C.damage(e, power, crit ? 'crit' : 'note'));
+  }
+  C.stride = stride;
+  C.kick = () => {};
   function defeat(e) {
     e.dead = true;
     S.enemies = S.enemies.filter(x => x !== e);
@@ -481,7 +494,7 @@
     } else {
       eff = pick(D.GOLDEN, e => e.w);
       if (eff.id === 'frenzy') C.addBuff('frenzy', 'Sneaker Frenzy', 77 * d, { prod: 7 });
-      if (eff.id === 'clickf') C.addBuff('clickf', 'Click Frenzy', 13 * d, { click: 77 });
+      if (eff.id === 'clickf') C.addBuff('clickf', 'Note Frenzy', 13 * d, { click: 77 });
       if (eff.id === 'lucky') { const s = C.baseSps(m); info.steps = Math.max(Math.min(S.steps * 0.15, s * 900), s * 60) + 13; C.gain(info.steps); }
       if (eff.id === 'rain') { info.boxes = 2 + Math.floor(R() * 4); S.boxes += info.boxes; C.emit('boxDrop', info.boxes, 'golden'); }
       if (eff.id === 'repel') { C.addBuff('repel', 'Tux Repellent', 120 * d, null); S.enemies.filter(e => !e.boss).forEach(e => { e.flee = 1; }); S.heat = 0; }
@@ -659,7 +672,7 @@
   [[10, 'Warming Up'], [1e3, 'Getting Somewhere'], [1e5, 'Unstoppable'], [1e7, 'Sneaker Storm'], [1e9, 'Stampede'], [1e11, 'Seismic'], [1e13, 'Cosmic Cadence']]
     .forEach(([n, name], i) => ach('sps' + i, name, 'Reach ' + C.fmt(n) + ' Steps per second.', () => st().bestSps >= n));
   [[100, 'Tap Tap'], [1000, 'Clicky'], [1e4, 'Finger Athlete'], [5e4, 'Legend of the Left Button']]
-    .forEach(([n, name], i) => ach('clicks' + i, name, 'Click O\'Toole ' + C.fmt(n) + ' times.', () => st().manualClicks >= n));
+    .forEach(([n, name], i) => ach('clicks' + i, name, 'Hit ' + C.fmt(n) + ' notes on the beat.', () => st().hits >= n));
   [[1, 'First Verse'], [10, 'Sing-Along'], [100, 'Broken Record'], [1000, 'Earworm']]
     .forEach(([n, name], i) => ach('verse' + i, name, 'Finish ' + C.fmt(n) + ' verses.', () => st().verses >= n));
   [[1, 'Perfect Pitch'], [25, 'Metronome'], [100, 'Human Jukebox']]
@@ -674,7 +687,7 @@
   [[1, 'NO!'], [10, 'Not Today'], [100, 'Dress Code Violation'], [1000, 'Tux Buster'], [5000, 'Black Tie Nightmare']]
     .forEach(([n, name], i) => ach('enemy' + i, name, 'Get away from ' + C.fmt(n) + ' tuxedo men.', () => st().enemies >= n));
   [[1, 'Boss Fight'], [5, 'Formal Complaint'], [25, 'Gala Crasher'], [100, 'Etiquette Destroyer']]
-    .forEach(([n, name], i) => ach('boss' + i, name, 'Outlast ' + n + ' bosses.', () => st().bosses >= n));
+    .forEach(([n, name], i) => ach('boss' + i, name, 'Make ' + n + ' boss' + (n > 1 ? 'es' : '') + ' too dizzy to stand.', () => st().bosses >= n));
   ach('goldtux', 'Gold Standard', 'Outrun a Golden Tuxedo.', () => st().goldenTux >= 1);
   ach('tug10', 'Snug Fit', 'Get your sneakers tugged 10 times. They stayed on.', () => st().tugs >= 10);
   [[1, 'Unboxing'], [10, 'Box Collector'], [100, 'Sneakerhead'], [500, 'Hype Beast'], [2000, 'Warehouse']]
@@ -767,40 +780,31 @@
       if (S.autoNext && S.songIdle > 0.25) { S.songIdle = 0; S.autoNext = false; C.emit('wantSong', false); }
       else if (m.auto > 0 && S.songIdle > 1.2) { S.songIdle = 0; C.emit('wantSong', true); }
     }
-    // heat & spawning
-    if (!C.buffActive('repel')) {
+    // heat & spawning (no new chasers while a boss blocks the street)
+    if (!C.buffActive('repel') && !C.bossActive()) {
       S.heat += C.heatRate(m) * dt;
-      if (S.heat >= 100 && S.enemies.length < 6) {
+      if (S.heat >= 100 && S.enemies.length < 4) {
         S.heat = 0; spawnEnemy();
         const extra = C.buffActive('conv') ? 2 : (S.cuts >= 5 && R() < 0.25 ? 1 : 0);
-        for (let i = 0; i < extra; i++) spawnEnemy(pick(['tux', 'waiter', 'tophat'], () => 1));
+        for (let i = 0; i < extra && S.enemies.length < 4 && !C.bossActive(); i++) spawnEnemy(pick(['tux', 'waiter', 'tophat'], () => 1));
       }
     }
-    // enemies walk
+    // chasers close in; decoys (guard) slow them; bosses walk in, then wait out their timer
     for (const e of S.enemies.slice()) {
-      if (e.flee) { e.p -= dt * 0.5; if (e.p <= -0.1) { S.enemies = S.enemies.filter(x => x !== e); C.emit('leave', e); } continue; }
-      if (e.type === 'golden') { // golden tux crosses the whole screen and escapes
-        e.p += e.spd * dt;
-        if (e.p >= 2) { S.enemies = S.enemies.filter(x => x !== e); C.emit('leave', e); }
-        continue;
-      }
       if (e.boss) {
-        if (e.p < 0.62) e.p = Math.min(0.62, e.p + e.spd * dt);
-        else { e.timer -= dt; if (e.timer <= 0) { tug(e); C.emit('bossFail', e); } }
+        if (e.p < 1) e.p = Math.min(1, e.p + e.spd * dt);
+        else {
+          if (m.guard) C.damage(e, m.kickDmg * 0.15 * m.guard * dt, 'guard');
+          if (e.dead) continue;
+          e.timer -= dt; if (e.timer <= 0) { tug(e); C.emit('bossFail', e); }
+        }
         continue;
       }
-      e.p += e.spd * dt;
-      if (e.p >= 1) tug(e);
+      if (e.flee) { e.gap += dt * 0.6; if (e.gap >= 1.2) { S.enemies = S.enemies.filter(x => x !== e); C.emit('leave', e); } continue; }
+      e.gap -= e.spd * dt;
+      if (m.guard) e.gap += 0.012 * m.guard * dt;
+      if (e.gap <= 0) tug(e);
     }
-    // bodyguard
-    if (m.guard > 0 && S.enemies.length) {
-      S.guardAcc += m.guard * dt;
-      while (S.guardAcc >= 1 && S.enemies.length) {
-        S.guardAcc -= 1;
-        const tgt = S.enemies.filter(e => !e.flee && e.type !== 'golden').sort((a, b) => b.p - a.p)[0];
-        if (tgt) C.damage(tgt, Math.max(1, m.kickDmg * 0.5), 'guard'); else break;
-      }
-    } else S.guardAcc = 0;
     // golden sneaker
     if (S.golden) { S.golden.t += dt; if (S.golden.t >= S.golden.life) { S.golden = null; C.emit('goldenMiss'); } }
     else { S.goldNext -= dt; if (S.goldNext <= 0) { S.goldNext = C.goldInterval(); if (isFinite(S.goldNext)) spawnGolden(); else S.goldNext = 60; } }

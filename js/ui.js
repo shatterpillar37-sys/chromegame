@@ -23,9 +23,10 @@
   try { Object.assign(U.set, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch (e) {}
   if (U.set.voiceMode === 'piano') U.set.voiceMode = 'vocals';
   /* ---------------- keybinds ---------------- */
-  const KEY_DEFAULTS = { lane0: 'f', lane1: 'g', lane2: 'h', lane3: 'j', start: ' ', dodge: 'e', golden: 'q', buy: 'b', wheel: 'w', mute: 'm' };
-  const KEY_LABELS = { lane0: 'Note row 1 (top)', lane1: 'Note row 2', lane2: 'Note row 3', lane3: 'Note row 4 (bottom)', start: 'Start the song', dodge: 'Dodge the closest tuxedo man', golden: 'Grab the Golden Sneaker', buy: 'Buy the cheapest building', wheel: 'Open the Wheel', mute: 'Mute' };
+  const KEY_DEFAULTS = { lane0: 'f', lane1: 'g', lane2: 'h', lane3: 'j', start: ' ', golden: 'q', buy: 'b', wheel: 'w', mute: 'm' };
+  const KEY_LABELS = { lane0: 'Note row 1 (top)', lane1: 'Note row 2', lane2: 'Note row 3', lane3: 'Note row 4 (bottom)', start: 'Start the song', golden: 'Grab the Golden Sneaker', buy: 'Buy the cheapest building', wheel: 'Open the Wheel', mute: 'Mute' };
   U.set.keys = Object.assign({}, KEY_DEFAULTS, U.set.keys || {});
+  delete U.set.keys.dodge;
   U.normKey = (k) => k.length === 1 ? k.toLowerCase() : k;
   const KEY_NAMES = { ' ': 'Space', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Enter: 'Enter', Backspace: 'Bksp' };
   U.keyText = (k) => KEY_NAMES[k] || (k.length === 1 ? k.toUpperCase() : k);
@@ -373,7 +374,7 @@
   /* ----- sneakers ----- */
   let snkSig = '';
   const FXT = {
-    prod: v => `+${Math.round(v * 100)}% production`, click: v => `+${Math.round(v * 100)}% click power`, kick: v => `+${f(v, 1)} dodge power`,
+    prod: v => `+${Math.round(v * 100)}% production`, click: v => `+${Math.round(v * 100)}% note value`, kick: v => `+${f(v, 1)} stride`,
     luck: v => `+${Math.round(v * 100)}% luck`, offline: v => `+${Math.round(v * 100)}% offline progress`, verse: v => `+${Math.round(v * 100)}% verse bonus`,
     heat: v => `Heat builds ${Math.round(-v * 100)}% slower`, crit: v => `+${(v * 100).toFixed(1)}% crit chance`, combo: v => `+${Math.round(v)} combo cap`,
     box: v => `+${Math.round(v * 100)}% Shoebox drops`, gold: v => `Golden Sneakers ${Math.round(v * 100)}% more often`, auto: v => `+${f(v, 1)} auto-sung words/sec`,
@@ -570,10 +571,10 @@
     const s = S(), st = s.stats, m = C.mods();
     const rows = [
       ['Steps this run', f(s.runSteps)], ['Lifetime Steps', f(s.allSteps)], ['Steps per second', f(C.sps(), 1)], ['Best Steps per second', f(st.bestSps, 1)],
-      ['Steps per click', f(C.clickBase(m) * C.comboMult(), 1)], ['Total production multiplier', 'x' + f(m.global, 2)],
+      ['Steps per note', f(C.clickBase(m) * C.comboMult(), 1)], ['Total production multiplier', 'x' + f(m.global, 2)],
       ['Clicks', f(st.manualClicks)], ['Songs played', f(s.songs || 0)], ['Words hit on the beat', f(st.hits)], ['Perfect hits', f(st.perfectHits)], ['Misses', f(st.misses)], ['Accuracy', Math.round(C.accuracy() * 100) + '%'], ['Words sung (incl. auto)', f(st.clicks)], ['Verses sung', f(st.verses)], ['Perfect Verses', f(st.perfect)], ['Best verse', f(st.bestVerse)], ['Best combo', f(st.bestCombo)], ['Fastest song', 'x' + (st.bestSpeed || 1).toFixed(2)], ['Critical clicks', f(st.crits)],
       ['Buildings owned', f(C.totalBuildings())], ['Upgrades bought (all time)', f(st.upgrades)],
-      ['Tuxedo men escaped', f(st.enemies)], ['Bosses outlasted', f(st.bosses)], ['Times tugged', f(st.tugs)], ['Dodge power', f(m.kickDmg, 1)], ['Luck', '+' + Math.round(m.luck * 100) + '%'], ['Crit chance', (m.crit * (1 + m.luck * 0.5) * 100).toFixed(1) + '%'],
+      ['Tuxedo men escaped', f(st.enemies)], ['Bosses made dizzy', f(st.bosses)], ['Times tugged', f(st.tugs)], ['Stride', f(m.kickDmg, 1)], ['Luck', '+' + Math.round(m.luck * 100) + '%'], ['Crit chance', (m.crit * (1 + m.luck * 0.5) * 100).toFixed(1) + '%'],
       ['Golden Sneakers clicked', f(st.golden)], ['Shoeboxes opened', f(st.boxesOpened)], ['Shiny sneakers found', f(st.shinies)], ['Wheel spins', f(st.wheelSpins)], ['Random events', f(st.events)],
       ['Cutaways', f(s.cuts)], ['Sole Power earned', f(s.spTotal)], ['Golden Laces', f(s.gl)], ['Awards', Object.keys(s.ach).length + '/' + C.ACH.length],
       ['Time played', C.time(st.play)], ['Started', new Date(s.created).toLocaleDateString()],
@@ -583,7 +584,7 @@
 
   /* ---------------- tooltips content ---------------- */
   const costLine = (cost, have, icon) => `<p class="tcost ${have < cost ? 'no' : ''}"><span style="display:inline-block;width:16px;vertical-align:-3px">${A.icon(icon || 'steps')}</span> ${f(cost)}</p>`;
-  U.tips.bank = () => { const s = S(), m = C.mods(); return `<h5>Steps</h5><p>Earned by singing, buildings and getting away from tuxedo men.</p><p>Per click: <b>${f(C.clickBase(m) * C.comboMult(), 1)}</b> · Per verse: <b>${f(Math.max(C.clickBase(m) * 5, C.sps(m) * 0.5) * m.verse)}</b></p><p>Production multiplier: <b>x${f(m.global, 2)}</b></p>`; };
+  U.tips.bank = () => { const s = S(), m = C.mods(); return `<h5>Steps</h5><p>Earned by singing, buildings and leaving tuxedo men behind.</p><p>Per note: <b>${f(C.clickBase(m) * C.comboMult(), 1)}</b> · Per verse: <b>${f(Math.max(C.clickBase(m) * 5, C.sps(m) * 0.5) * m.verse)}</b></p><p>Production multiplier: <b>x${f(m.global, 2)}</b></p>`; };
   U.tips.bld = (id) => {
     const b = C.BLD[id], s = S(), m = C.mods(), own = s.b[id] || 0, each = C.bldRate(b, m), tot = C.sps(m) || 1;
     const nextTier = D.TIERS.find(t => t.at > own);
@@ -604,8 +605,8 @@
   })[id];
   U.tips.wheel = () => { const w = S().wheel; return `<h5>Wheel of Laces</h5><p>${w.charges ? `<b>${w.charges}</b> free spin${w.charges > 1 ? 's' : ''} ready!` : 'Next free spin in <b>' + C.time((w.next - Date.now()) / 1000) + '</b>'}</p><p>Recharges every ${Math.round(C.wheelPeriod() / 60000)} minutes, even while you're away.</p>`; };
   U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole (or press ${U.keyName('start')}) to play the piano. Each word falls down one of four columns: press that column's key (${[0, 1, 2, 3].map(U.laneKey).join(' ')}) as it lands on the keycap and he sings it. Keep singing and the next song starts by itself.</p><p>Hit all eleven with no stray presses for a Perfect Verse, and the next song plays 10% faster. Tight hits are Perfect (x1.5). Mashing backfires: a wrong or extra press is a miss and can ruin the next note.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
-  U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man comes to take the sneakers. Click him and O'Toole jumps out of reach. Dodge enough and he gives up.</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
-  U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man who gives up fills a pip. When it's full, a boss shows up. Wear him out before his timer runs out for Golden Laces!</p>`;
+  U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man starts chasing you from behind. Sing notes to run up the street; get far enough ahead and he gives up. Stop singing and he catches up.</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
+  U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man who gives up fills a pip. When it's full, a boss blocks the street. Sing notes to run circles around him until he's too dizzy to stand, before his timer runs out, for Golden Laces!</p>`;
   U.tips.tablock = (id) => ({ tree: `<h5>Lace Tree</h5><p>Unlocks after your first Cutaway.</p>`, sneakers: `<h5>Sneakers</h5><p>Unlocks when you get your first Shoebox. Tuxedo men sometimes drop them.</p>`, cut: `<h5>Cutaway</h5><p>Unlocks as you approach ${f(C.SP_DIV)} lifetime Steps.</p>` })[id];
 
   /* ---------------- HUD on the stage ---------------- */
@@ -708,9 +709,9 @@
     bb.hidden = !boss;
     if (boss) {
       bb.querySelector('.bb-name').textContent = boss.name;
-      bb.querySelector('.bb-hp i').style.width = Math.max(0, boss.hp / boss.max * 100) + '%';
-      bb.querySelector('.bb-time').textContent = boss.p < 0.62 ? 'Approaching...' : Math.ceil(boss.timer) + 's until he pulls the laces!';
-      bb.classList.toggle('urgent', boss.p >= 0.62 && boss.timer < 8);
+      bb.querySelector('.bb-hp i').style.width = Math.min(100, (1 - Math.max(0, boss.hp) / boss.max) * 100) + '%';
+      bb.querySelector('.bb-time').textContent = boss.p < 1 ? 'Stepping into the street...' : 'Dizziness · ' + Math.ceil(boss.timer) + 's before he grabs the laces!';
+      bb.classList.toggle('urgent', boss.p >= 1 && boss.timer < 8);
     }
     // scene + challenge
     $('#sceneTag').textContent = D.SCENES[s.scene] + (s.cuts ? ' · Cutaway #' + s.cuts : '');

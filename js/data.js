@@ -77,27 +77,27 @@
     fx: { ['b_' + b.id]: 2 },
   })));
   const U = (id, name, cost, icon, desc, fx, req) => D.UPGRADES.push({ id, name, cost, icon, desc, fx, req: req || { steps: cost * 0.4 }, tier: 0 });
-  U('laces1', 'Tighter Laces', 100, 'i:click', 'Clicking x2.', { click: 2 }, { clicks: 15 });
-  U('laces2', 'Squeaky Soles', 600, 'i:click', 'Clicking x2.', { click: 2 }, { clicks: 60 });
-  U('laces3', 'Vocal Warm-up', 12e3, 'i:click', 'Clicking x2.', { click: 2 }, { clicks: 200 });
+  U('laces1', 'Tighter Laces', 100, 'i:click', 'Each note earns x2.', { click: 2 }, { clicks: 15 });
+  U('laces2', 'Squeaky Soles', 600, 'i:click', 'Each note earns x2.', { click: 2 }, { clicks: 60 });
+  U('laces3', 'Vocal Warm-up', 12e3, 'i:click', 'Each note earns x2.', { click: 2 }, { clicks: 200 });
   [5e4, 5e6, 5e8, 5e10, 5e12, 5e14, 5e16, 5e18].forEach((c, i) =>
     U('sing' + i, ['Belt It Out', 'Falsetto', 'Vibrato', 'Stadium Voice', 'Sonic Boom', 'Glass Shatter', 'Cosmic Choir', 'The Final Note'][i], c, 'i:note',
-      'Each click also earns 1% of your Steps per second.', { clickSps: 0.01 }, { steps: c * 0.3 }));
+      'Each note also earns 1% of your Steps per second.', { clickSps: 0.01 }, { steps: c * 0.3 }));
   U('verse1', 'Second Verse', 5e3, 'i:verse', 'Verse bonus x2.', { verse: 2 }, { verses: 3 });
   U('verse2', 'Backup Dancers', 5e6, 'i:verse', 'Verse bonus x2.', { verse: 2 }, { verses: 25 });
   U('verse3', 'Key Change', 5e9, 'i:verse', 'Verse bonus x2.', { verse: 2 }, { verses: 100 });
   U('verse4', 'Standing Ovation', 5e13, 'i:verse', 'Verse bonus x2.', { verse: 2 }, { verses: 300 });
   U('combo1', 'Rhythm Section', 2e4, 'i:combo', 'Combo cap +25.', { comboCap: 25 }, { combo: 30 });
-  U('combo2', 'Metronome', 2e7, 'i:combo', 'Combo lasts 50% longer between clicks.', { comboWin: 1.5 }, { combo: 50 });
+  U('combo2', 'Metronome', 2e7, 'i:combo', 'Your combo survives 50% longer between songs.', { comboWin: 1.5 }, { combo: 50 });
   U('combo3', 'Drum Solo', 2e11, 'i:combo', 'Combo cap +50.', { comboCap: 50 }, { combo: 70 });
-  U('crit1', 'Lucky Aglets', 8e4, 'i:crit', 'Critical click chance +3%.', { crit: 0.03 }, { crits: 5 });
-  U('crit2', 'Sweet Spot', 8e8, 'i:crit', 'Critical clicks x2 stronger.', { critMult: 2 }, { crits: 50 });
-  U('kick1', 'Springy Soles', 2e3, 'i:kick', 'Dodge power +1: tuxedo men give up faster.', { kick: 1 }, { enemies: 1 });
-  U('kick2', 'Side Step', 2e6, 'i:kick', 'Dodge power x2.', { kickMult: 2 }, { enemies: 15 });
-  U('kick3', 'Sneaker Fu', 2e10, 'i:kick', 'Dodge power x2.', { kickMult: 2 }, { enemies: 60 });
-  U('kick4', 'Greased Lightning', 2e15, 'i:kick', 'Dodge power x3.', { kickMult: 3 }, { enemies: 200 });
-  U('heat1', 'Low Profile', 5e3, 'i:heat', 'Heat builds 15% slower.', { heat: 0.85 }, { enemies: 3 });
-  U('heat2', 'Fake Mustache', 5e7, 'i:heat', 'Heat builds 15% slower.', { heat: 0.85 }, { enemies: 30 });
+  U('crit1', 'Lucky Aglets', 8e4, 'i:crit', 'Critical note chance +3%.', { crit: 0.03 }, { crits: 5 });
+  U('crit2', 'Sweet Spot', 8e8, 'i:crit', 'Critical notes x2 stronger.', { critMult: 2 }, { crits: 50 });
+  U('kick1', 'Springy Soles', 2e3, 'i:kick', 'Stride +1: every note leaves chasers further behind and makes bosses dizzier.', { kick: 1 }, { enemies: 1 });
+  U('kick2', 'Long Strides', 2e6, 'i:kick', 'Stride x2.', { kickMult: 2 }, { enemies: 15 });
+  U('kick3', 'Sneaker Sprint', 2e10, 'i:kick', 'Stride x2.', { kickMult: 2 }, { enemies: 60 });
+  U('kick4', 'Greased Lightning', 2e15, 'i:kick', 'Stride x3.', { kickMult: 3 }, { enemies: 200 });
+  U('heat1', 'Low Profile', 5e3, 'i:heat', 'Chasers show up 15% less often.', { heat: 0.85 }, { enemies: 3 });
+  U('heat2', 'Fake Mustache', 5e7, 'i:heat', 'Chasers show up 15% less often.', { heat: 0.85 }, { enemies: 30 });
   U('loot1', 'Pickpocket', 3e5, 'i:tux', 'Tuxedo men who give up drop x1.5 Steps.', { enemyReward: 1.5 }, { enemies: 10 });
   U('loot2', 'Tux Rental Scam', 3e9, 'i:tux', 'Tuxedo men drop x2 Steps.', { enemyReward: 2 }, { enemies: 50 });
   U('luck1', 'Four-Leaf Aglets', 1e6, 'i:luck', 'Luck +10%.', { luck: 0.1 }, { golden: 1 });
@@ -189,7 +189,7 @@
   D.GOLDEN = [
     { id: 'frenzy',  name: 'Sneaker Frenzy',  w: 40, desc: 'Production x7 for 77 seconds!' },
     { id: 'lucky',   name: 'Lucky Steps',     w: 34, desc: 'A pile of Steps!' },
-    { id: 'clickf',  name: 'Click Frenzy',    w: 8,  desc: 'Clicking x77 for 13 seconds!' },
+    { id: 'clickf',  name: 'Note Frenzy',     w: 8,  desc: 'Every note earns x77 for 13 seconds!' },
     { id: 'rain',    name: 'Shoebox Rain',    w: 10, desc: 'Shoeboxes fall from the sky!' },
     { id: 'repel',   name: 'Tux Repellent',   w: 4,  desc: 'No tuxedo men for 2 minutes.' },
     { id: 'encore',  name: 'Encore',          w: 4,  desc: 'Your next 5 verses are x10!' },
@@ -231,17 +231,17 @@
   D.TREE = [
     T('root', 'root', 0, 0, null, 'The Original Pair', 1, 'Production x1.25. Unlocks the Lace Tree.', { prod: 1.25 }),
     // Rhythm: up
-    T('r1', 'rhythm', 0, -1, 'root', 'Warm Up', 1, 'Clicking x3.', { click: 3 }),
+    T('r1', 'rhythm', 0, -1, 'root', 'Warm Up', 1, 'Each note earns x3.', { click: 3 }),
     T('r2', 'rhythm', -1, -2, 'r1', 'Karaoke Night', 2, 'Verse bonus x3.', { verse: 3 }),
     T('r3', 'rhythm', 1, -2, 'r1', 'Crowd Surfing', 3, 'Combo cap +25.', { comboCap: 25 }),
     T('r4', 'rhythm', 0, -3, 'r1', 'Auto-Singer', 5, 'O\'Toole starts the song himself and sings 25% of the words you miss.', { auto: 1 }),
-    T('r5', 'rhythm', -1, -4, 'r4', 'Perfect Pitch', 10, 'Critical click chance +4%.', { crit: 0.04 }),
-    T('r6', 'rhythm', 1, -4, 'r4', 'Chorus Line', 20, 'Each click earns 3% of Steps per second.', { clickSps: 0.03 }),
+    T('r5', 'rhythm', -1, -4, 'r4', 'Perfect Pitch', 10, 'Critical note chance +4%.', { crit: 0.04 }),
+    T('r6', 'rhythm', 1, -4, 'r4', 'Chorus Line', 20, 'Each note also earns 3% of Steps per second.', { clickSps: 0.03 }),
     T('r7', 'rhythm', 0, -5, 'r4', 'Duet', 40, 'Auto-Singer catches 50% more of your missed words.', { auto: 2 }),
-    T('r8', 'rhythm', -1, -6, 'r7', 'Stage Presence', 90, 'Critical clicks x3 stronger.', { critMult: 3 }),
-    T('r9', 'rhythm', 1, -6, 'r7', 'Metronome Heart', 150, 'Combo lasts twice as long between clicks.', { comboWin: 2 }),
-    T('r10', 'rhythm', 0, -7, 'r7', 'Unplugged', 400, 'Clicking x10. Verse bonus x5.', { click: 10, verse: 5 }),
-    T('r11', 'rhythm', 0, -8, 'r10', 'Encore Forever', 1500, 'Clicking and verses x1.25 per level.', { click: 1.25, verse: 1.1 }, 50),
+    T('r8', 'rhythm', -1, -6, 'r7', 'Stage Presence', 90, 'Critical notes x3 stronger.', { critMult: 3 }),
+    T('r9', 'rhythm', 1, -6, 'r7', 'Metronome Heart', 150, 'Your combo survives twice as long between songs.', { comboWin: 2 }),
+    T('r10', 'rhythm', 0, -7, 'r7', 'Unplugged', 400, 'Notes x10. Verse bonus x5.', { click: 10, verse: 5 }),
+    T('r11', 'rhythm', 0, -8, 'r10', 'Encore Forever', 1500, 'Notes x1.25 and verses x1.1 per level.', { click: 1.25, verse: 1.1 }, 50),
     // Hustle: right
     T('h1', 'hustle', 1, 0, 'root', 'Hustle', 1, 'Production x1.5.', { prod: 1.5 }),
     T('h2', 'hustle', 2, -1, 'h1', 'Block Party', 2, 'Lace-Up Kids and Fan Clubs x4.', { b_kid: 4, b_fan: 4 }),
@@ -255,17 +255,17 @@
     T('h10', 'hustle', 7, 0, 'h7', 'Sneaker Empire', 500, 'Production x3.', { prod: 3 }),
     T('h11', 'hustle', 8, 0, 'h10', 'Endless Hustle', 1500, 'Production x1.25 per level.', { prod: 1.25 }, 50),
     // Defiance: down
-    T('d1', 'defy', 0, 1, 'root', 'Stubborn', 1, 'Dodge power +2.', { kick: 2 }),
-    T('d2', 'defy', -1, 2, 'd1', 'Stay Hidden', 2, 'Heat builds 20% slower.', { heat: 0.8 }),
-    T('d3', 'defy', 1, 2, 'd1', 'Decoy Sneakers', 4, 'A decoy pair distracts tuxedo men once per second.', { guard: 1 }),
+    T('d1', 'defy', 0, 1, 'root', 'Long Legs', 1, 'Stride +2.', { kick: 2 }),
+    T('d2', 'defy', -1, 2, 'd1', 'Stay Hidden', 2, 'Chasers show up 20% less often.', { heat: 0.8 }),
+    T('d3', 'defy', 1, 2, 'd1', 'Decoy Sneakers', 4, 'Decoys slow chasers down and make bosses a little dizzy on their own.', { guard: 1 }),
     T('d4', 'defy', 0, 3, 'd1', 'Shakedown', 8, 'Tuxedo men drop x2 Steps.', { enemyReward: 2 }),
-    T('d5', 'defy', -1, 4, 'd4', 'Home Turf', 15, 'Boss fights last 15 seconds longer.', { bossTime: 15 }),
-    T('d6', 'defy', 1, 4, 'd4', 'Decoy Warehouse', 30, 'Decoys distract 3 more times per second.', { guard: 3 }),
-    T('d7', 'defy', 0, 5, 'd4', 'Death Grip', 60, 'Tugs steal 75% less. Dodge power x3.', { tug: 0.25, kickMult: 3 }),
+    T('d5', 'defy', -1, 4, 'd4', 'Home Turf', 15, 'Bosses wait 15 seconds longer before grabbing the laces.', { bossTime: 15 }),
+    T('d6', 'defy', 1, 4, 'd4', 'Decoy Warehouse', 30, 'Decoys work 4x as well.', { guard: 3 }),
+    T('d7', 'defy', 0, 5, 'd4', 'Death Grip', 60, 'Tugs steal 75% less. Stride x3.', { tug: 0.25, kickMult: 3 }),
     T('d8', 'defy', -1, 6, 'd7', 'Trophy Hunter', 120, 'Bosses drop +2 Golden Laces.', { bossGl: 2 }),
-    T('d9', 'defy', 1, 6, 'd7', 'Showstopper', 200, 'Finishing a verse wears down every tuxedo man on screen.', { verseShock: 1 }),
-    T('d10', 'defy', 0, 7, 'd7', 'The Two Men Give Up', 500, 'Heat builds 40% slower. Tuxedo loot x3.', { heat: 0.6, enemyReward: 3 }),
-    T('d11', 'defy', 0, 8, 'd10', 'Uncatchable', 1500, 'Dodge power x1.5 and loot x1.1 per level.', { kickMult: 1.5, enemyReward: 1.1 }, 50),
+    T('d9', 'defy', 1, 6, 'd7', 'Showstopper', 200, 'Finishing a verse leaves chasers far behind and spins bosses around.', { verseShock: 1 }),
+    T('d10', 'defy', 0, 7, 'd7', 'The Two Men Give Up', 500, 'Chasers show up 40% less often. Tuxedo loot x3.', { heat: 0.6, enemyReward: 3 }),
+    T('d11', 'defy', 0, 8, 'd10', 'Uncatchable', 1500, 'Stride x1.5 and loot x1.1 per level.', { kickMult: 1.5, enemyReward: 1.1 }, 50),
     // Fortune: left
     T('f1', 'luck', -1, 0, 'root', 'Beginner\'s Luck', 1, 'Luck +15%.', { luck: 0.15 }),
     T('f2', 'luck', -2, -1, 'f1', 'Gold Rush', 2, 'Golden Sneakers appear 20% more often.', { gold: 1.2 }),
@@ -296,7 +296,7 @@
   /* ---------------- Challenges ("Special Episodes") ---------------- */
   D.CHALLENGES = [
     { id: 'silent', name: 'Silent Film',      goal: 1e10, desc: 'Singing earns nothing. Only buildings produce.', reward: 'Auto-Singer catches 50% more missed words, forever.', fx: { auto: 2 } },
-    { id: 'invasion', name: 'Tux Invasion',   goal: 1e10, desc: 'Heat builds 4x faster and tuxedo men are twice as persistent.', reward: 'Dodge power x3, forever.', fx: { kickMult: 3 } },
+    { id: 'invasion', name: 'Tux Invasion',   goal: 1e10, desc: 'Chasers show up 4x as often and are twice as persistent.', reward: 'Stride x3, forever.', fx: { kickMult: 3 } },
     { id: 'budget', name: 'Budget Episode',   goal: 1e10, desc: 'Buildings get 30% more expensive each (instead of 15%).', reward: 'Buildings cost 10% less, forever.', fx: { cost: 0.9 } },
     { id: 'monotone', name: 'Monotone',       goal: 1e11, desc: 'No verse bonus, no combo, no crits.', reward: 'Verse bonus x5, forever.', fx: { verse: 5 } },
     { id: 'jinx', name: 'Jinxed',             goal: 1e11, desc: 'Luck is zero, and no Golden Sneakers appear.', reward: 'Luck +30%, forever.', fx: { luck: 0.3 } },
@@ -305,7 +305,7 @@
   ];
 
   /* ---------------- Scenes (a new one every Cutaway) ---------------- */
-  D.SCENES = ['Quahog', 'Texas', 'Outer Space', 'Under the Sea', 'The Big Stage', 'Snowy Peaks', 'Neon City', 'The Sneaker Vault'];
+  D.SCENES = ['Quahog', 'Texas Highway', 'Moon Base', 'Under the Sea', 'Broadway', 'Snowy Peaks', 'Neon City', 'The Sneaker Mall'];
 
   /* ---------------- News ticker ---------------- */
   D.NEWS = [
@@ -338,7 +338,8 @@
     [0, 'Tip: keep singing and the next song starts by itself.'],
     [0, 'Tip: if hits feel early or late, adjust the timing offset in Settings.'],
     [0, 'Tip: the Golden Sneaker only flies by for a few seconds. Keep your eyes open.'],
-    [0, 'Tip: beat a boss before the timer runs out, or he pulls on the laces.'],
+    [0, 'Tip: run circles around a boss until he is too dizzy to stand, before his timer runs out.'],
+    [0, 'Tip: tuxedo men chase you from behind. Keep singing to stay ahead.'],
   ];
 
   if (typeof module !== 'undefined') module.exports = D; else root.DATA = D;

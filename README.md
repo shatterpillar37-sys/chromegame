@@ -1,6 +1,6 @@
 # Sneakers O'Toole
 
-An incremental rhythm game about a man who will not take his sneakers off. Click O'Toole (or press Space) to play the piano; each word falls down one of four columns, and pressing that column's key (F G H J by default, rebindable in Settings) on the beat makes him sing it. On-beat words earn Steps. Fan-made and non-commercial; Sneakers O'Toole is from *Family Guy*.
+An incremental rhythm game about a man who will not take his sneakers off. Click O'Toole (or press Space) to play the piano; each word falls down one of four columns, and pressing that column's key (F G H J by default, rebindable in Settings) on the beat makes him sing it. On-beat words earn Steps and carry him up the street, away from the tuxedo men chasing him; bosses who block the street get circled until they're too dizzy to stand. Fan-made and non-commercial; Sneakers O'Toole is from *Family Guy*.
 
 ## Play on a Chromebook (no Linux needed)
 
