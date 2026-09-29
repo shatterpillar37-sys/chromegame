@@ -250,7 +250,6 @@
   C.song = () => song;
   // position in the recording (seconds), so word timings stay fixed whatever the playback speed
   C.songTime = () => song ? (C.clock() - song.t0) * song.speed : -1;
-  C.strict = false;          // strict timing: wrong/extra presses are misses and only tight hits are Perfect
   C.MAX_SPEED = 4;
   C.speed = () => S.songSpeed || 1;
   C.startSong = (t0, auto) => {
@@ -282,22 +281,31 @@
     S.lastClick = S.time;
     if (!song) return { res: 'start' };
     const t = C.songTime();
-    let best = -1, bd = Infinity, wrong = false;
+    let best = -1, bd = Infinity, wrongK = -1, wd = Infinity;
     D.PHRASE.forEach((p, k) => {
       if (song.hits[k]) return;
       const d = Math.abs(t - p.t) / song.speed;   // real seconds
       if (d > D.WIN_GOOD) return;
-      if (lane !== undefined && song.lanes[k] !== lane) { wrong = true; return; }
+      if (lane !== undefined && song.lanes[k] !== lane) { if (d < wd) { wd = d; wrongK = k; } return; }
       if (d < bd) { bd = d; best = k; }
     });
     if (best < 0) {
-      if (!C.strict) return { res: 'ignored' };   // mashing keys is fine: stray presses cost nothing
+      // Mashing doesn't pay. A wrong key ruins the note at the keycap; a stray press ruins the
+      // next note if it's close. Either way it's a miss, the combo breaks, and the song isn't clean.
+      let ruined = wrongK;
+      if (ruined < 0) {
+        let nk = -1, nd = Infinity;
+        D.PHRASE.forEach((p, k) => { if (song.hits[k]) return; const ahead = (p.t - t) / song.speed; if (ahead > 0 && ahead < D.RUIN_AHEAD && ahead < nd) { nd = ahead; nk = k; } });
+        ruined = nk;
+      }
+      if (ruined >= 0) { song.hits[ruined] = 'miss'; C.emit('wordMiss', ruined); }
+      song.stray = (song.stray || 0) + 1;
       if (S.combo >= 10) C.emit('comboEnd', S.combo);
       S.combo = 0; S.stats.misses++;
-      C.emit('miss', lane, wrong);
-      return { res: 'miss', wrong };
+      C.emit('miss', lane, wrongK >= 0);
+      return { res: 'miss', wrong: wrongK >= 0 };
     }
-    const grade = !C.strict || bd <= D.WIN_PERFECT ? 'perfect' : 'good';
+    const grade = bd <= D.WIN_PERFECT ? 'perfect' : 'good';
     const voiced = !!song.planned[best];
     song.hits[best] = grade;
     S.combo++; if (S.combo > S.stats.bestCombo) S.stats.bestCombo = S.combo;
@@ -337,13 +345,14 @@
     const done = song; song = null;
     const mine = done.hits.filter(h => h === 'perfect' || h === 'good').length;
     const sung = done.hits.filter(h => h && h !== 'miss').length;
-    const q = mine === D.PHRASE.length ? 2 : mine >= 9 ? 1 : sung >= 6 ? 0 : -1;
+    const q = mine === D.PHRASE.length && !done.stray ? 2 : mine >= 9 ? 1 : sung >= 6 ? 0 : -1;
     S.songs = (S.songs || 0) + 1;
     // keep the songs coming while the player is singing along; sitting one out stops the loop
     S.autoNext = mine > 0 && S.challenge !== 'silent';
     // every flawless song speeds the next one up by 10%; dropping a word resets the tempo
     const prevSpeed = done.speed;
-    S.songSpeed = mine === D.PHRASE.length ? Math.min(C.MAX_SPEED, prevSpeed * 1.1) : 1;
+    const clean = mine === D.PHRASE.length && !done.stray;
+    S.songSpeed = clean ? Math.min(C.MAX_SPEED, prevSpeed * 1.1) : 1;
     if (S.songSpeed > (S.stats.bestSpeed || 1)) S.stats.bestSpeed = S.songSpeed;
     if (S.songSpeed !== prevSpeed) C.emit('speed', S.songSpeed, prevSpeed);
     if (q < 0) { C.emit('songEnd', 0, q, mine); return; }

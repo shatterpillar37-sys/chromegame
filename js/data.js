@@ -32,6 +32,7 @@
   D.LEAD_IN = 0.9;           // silence before each song so notes can travel down the lane          // the piano has finished ringing by here
   D.WIN_PERFECT = 0.075;     // seconds either side of the beat
   D.WIN_GOOD = 0.15;
+  D.RUIN_AHEAD = 0.4;       // a stray press this close before a note ruins it
   D.CHORDS = { Ab: AB, Db: DB, Eb: EB };
   D.CHORD_BASS = { Ab: 44, Db: 37, Eb: 39 };
 

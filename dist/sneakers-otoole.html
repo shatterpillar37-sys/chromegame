@@ -782,6 +782,7 @@ window.ASSETS={
   D.LEAD_IN = 0.9;           // silence before each song so notes can travel down the lane          // the piano has finished ringing by here
   D.WIN_PERFECT = 0.075;     // seconds either side of the beat
   D.WIN_GOOD = 0.15;
+  D.RUIN_AHEAD = 0.4;       // a stray press this close before a note ruins it
   D.CHORDS = { Ab: AB, Db: DB, Eb: EB };
   D.CHORD_BASS = { Ab: 44, Db: 37, Eb: 39 };
 
@@ -1346,7 +1347,6 @@ window.ASSETS={
   C.song = () => song;
   // position in the recording (seconds), so word timings stay fixed whatever the playback speed
   C.songTime = () => song ? (C.clock() - song.t0) * song.speed : -1;
-  C.strict = false;          // strict timing: wrong/extra presses are misses and only tight hits are Perfect
   C.MAX_SPEED = 4;
   C.speed = () => S.songSpeed || 1;
   C.startSong = (t0, auto) => {
@@ -1378,22 +1378,31 @@ window.ASSETS={
     S.lastClick = S.time;
     if (!song) return { res: 'start' };
     const t = C.songTime();
-    let best = -1, bd = Infinity, wrong = false;
+    let best = -1, bd = Infinity, wrongK = -1, wd = Infinity;
     D.PHRASE.forEach((p, k) => {
       if (song.hits[k]) return;
       const d = Math.abs(t - p.t) / song.speed;   // real seconds
       if (d > D.WIN_GOOD) return;
-      if (lane !== undefined && song.lanes[k] !== lane) { wrong = true; return; }
+      if (lane !== undefined && song.lanes[k] !== lane) { if (d < wd) { wd = d; wrongK = k; } return; }
       if (d < bd) { bd = d; best = k; }
     });
     if (best < 0) {
-      if (!C.strict) return { res: 'ignored' };   // mashing keys is fine: stray presses cost nothing
+      // Mashing doesn't pay. A wrong key ruins the note at the keycap; a stray press ruins the
+      // next note if it's close. Either way it's a miss, the combo breaks, and the song isn't clean.
+      let ruined = wrongK;
+      if (ruined < 0) {
+        let nk = -1, nd = Infinity;
+        D.PHRASE.forEach((p, k) => { if (song.hits[k]) return; const ahead = (p.t - t) / song.speed; if (ahead > 0 && ahead < D.RUIN_AHEAD && ahead < nd) { nd = ahead; nk = k; } });
+        ruined = nk;
+      }
+      if (ruined >= 0) { song.hits[ruined] = 'miss'; C.emit('wordMiss', ruined); }
+      song.stray = (song.stray || 0) + 1;
       if (S.combo >= 10) C.emit('comboEnd', S.combo);
       S.combo = 0; S.stats.misses++;
-      C.emit('miss', lane, wrong);
-      return { res: 'miss', wrong };
+      C.emit('miss', lane, wrongK >= 0);
+      return { res: 'miss', wrong: wrongK >= 0 };
     }
-    const grade = !C.strict || bd <= D.WIN_PERFECT ? 'perfect' : 'good';
+    const grade = bd <= D.WIN_PERFECT ? 'perfect' : 'good';
     const voiced = !!song.planned[best];
     song.hits[best] = grade;
     S.combo++; if (S.combo > S.stats.bestCombo) S.stats.bestCombo = S.combo;
@@ -1433,13 +1442,14 @@ window.ASSETS={
     const done = song; song = null;
     const mine = done.hits.filter(h => h === 'perfect' || h === 'good').length;
     const sung = done.hits.filter(h => h && h !== 'miss').length;
-    const q = mine === D.PHRASE.length ? 2 : mine >= 9 ? 1 : sung >= 6 ? 0 : -1;
+    const q = mine === D.PHRASE.length && !done.stray ? 2 : mine >= 9 ? 1 : sung >= 6 ? 0 : -1;
     S.songs = (S.songs || 0) + 1;
     // keep the songs coming while the player is singing along; sitting one out stops the loop
     S.autoNext = mine > 0 && S.challenge !== 'silent';
     // every flawless song speeds the next one up by 10%; dropping a word resets the tempo
     const prevSpeed = done.speed;
-    S.songSpeed = mine === D.PHRASE.length ? Math.min(C.MAX_SPEED, prevSpeed * 1.1) : 1;
+    const clean = mine === D.PHRASE.length && !done.stray;
+    S.songSpeed = clean ? Math.min(C.MAX_SPEED, prevSpeed * 1.1) : 1;
     if (S.songSpeed > (S.stats.bestSpeed || 1)) S.stats.bestSpeed = S.songSpeed;
     if (S.songSpeed !== prevSpeed) C.emit('speed', S.songSpeed, prevSpeed);
     if (q < 0) { C.emit('songEnd', 0, q, mine); return; }
@@ -3146,7 +3156,7 @@ window.ASSETS={
   /* ---------------- settings ---------------- */
   const SET_KEY = 'sneakersOToole.settings';
   U.set = {
-    master: 0.8, music: 0.3, piano: 0.85, sfx: 0.7, voice: 1, no: 1, voiceMode: 'vocals', lineVoice: 'auto', offset: 0, strict: false, tts: false, autoSound: true,
+    master: 0.8, music: 0.3, piano: 0.85, sfx: 0.7, voice: 1, no: 1, voiceMode: 'vocals', lineVoice: 'auto', offset: 0, tts: false, autoSound: true,
     particles: 2, shake: true, floaters: true, bgAnim: true, reduce: false, numFmt: 'short', intro: true, confirmCut: true,
     kazoo: false, rainbow: false, rainbowOn: false, muted: false, tab: 'shop', buyAmt: 1,
   };
@@ -3193,7 +3203,6 @@ window.ASSETS={
     Object.assign(Snd.vol, { master: s.master * m, music: s.music, piano: s.piano, sfx: s.sfx, voice: s.voice, no: s.no });
     Snd.offset = (s.offset || 0) / 1000;
     Snd.lineVoice = s.lineVoice || 'auto';
-    C.strict = !!s.strict;
     Snd.voice = s.voiceMode; Snd.tts = s.tts; Snd.applyVolumes();
     Object.assign(St.q, { particles: +s.particles, shake: s.shake, floaters: s.floaters, bgAnim: s.bgAnim, reduce: s.reduce });
     C.numFmt = s.numFmt;
@@ -3734,7 +3743,7 @@ window.ASSETS={
     gl: `<h5>Golden Laces</h5><p>Dropped by bosses. Spend them in the Golden Lace Locker (Cutaway tab).</p>`,
   })[id];
   U.tips.wheel = () => { const w = S().wheel; return `<h5>Wheel of Laces</h5><p>${w.charges ? `<b>${w.charges}</b> free spin${w.charges > 1 ? 's' : ''} ready!` : 'Next free spin in <b>' + C.time((w.next - Date.now()) / 1000) + '</b>'}</p><p>Recharges every ${Math.round(C.wheelPeriod() / 60000)} minutes, even while you're away.</p>`; };
-  U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole (or press ${U.keyName('start')}) to play the piano. Each word falls down one of four columns: press that column's key (${[0, 1, 2, 3].map(U.laneKey).join(' ')}) as it lands on the keycap and he sings it. Keep singing and the next song starts by itself.</p><p>Hit all eleven for a Perfect Verse, and the next song plays 10% faster, so you sing more words per minute. Dropping a word resets the tempo. Mash away: stray presses don't count against you.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
+  U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole (or press ${U.keyName('start')}) to play the piano. Each word falls down one of four columns: press that column's key (${[0, 1, 2, 3].map(U.laneKey).join(' ')}) as it lands on the keycap and he sings it. Keep singing and the next song starts by itself.</p><p>Hit all eleven with no stray presses for a Perfect Verse, and the next song plays 10% faster. Tight hits are Perfect (x1.5). Mashing backfires: a wrong or extra press is a miss and can ruin the next note.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
   U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man comes to take the sneakers. Click him and O'Toole jumps out of reach. Dodge enough and he gives up.</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
   U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man who gives up fills a pip. When it's full, a boss shows up. Wear him out before his timer runs out for Golden Laces!</p>`;
   U.tips.tablock = (id) => ({ tree: `<h5>Lace Tree</h5><p>Unlocks after your first Cutaway.</p>`, sneakers: `<h5>Sneakers</h5><p>Unlocks when you get your first Shoebox. Tuxedo men sometimes drop them.</p>`, cut: `<h5>Cutaway</h5><p>Unlocks as you approach ${f(C.SP_DIV)} lifetime Steps.</p>` })[id];
@@ -3967,7 +3976,7 @@ window.ASSETS={
     const el = U.modal(`<div class="modal"><button class="x">✕</button><h2>Settings</h2>
       <div class="set-group"><h3>Sound</h3>${slider('master', 'Master')}${slider('piano', 'Piano')}${slider('voice', 'O\'Toole\'s singing')}${slider('music', 'Background music')}${slider('sfx', 'Effects')}${slider('no', 'Voices ("No!" and tuxedo men)')}
         ${sel('voiceMode', 'Singing voice', voices)}${tog('autoSound', 'Hear the Auto-Singer')}${sel('lineVoice', 'Tuxedo men\'s voices', [['auto', 'Recordings (computer voice if missing)'], ['speech', 'Computer voice'], ['off', 'Off']])}</div>
-      <div class="set-group"><h3>Rhythm</h3>${tog('strict', 'Strict timing', 'Wrong or extra key presses count as misses, and only tight hits are Perfect')}<div class="set-row"><label for="set-offset">Timing offset <small id="offVal">${s.offset || 0} ms · raise it if your hits register as late</small></label><input type="range" id="set-offset" min="-200" max="200" step="5" value="${s.offset || 0}"></div>${tog('tts', 'Speak each word', 'Uses your device\'s text-to-speech')}</div>
+      <div class="set-group"><h3>Rhythm</h3><div class="set-row"><label for="set-offset">Timing offset <small id="offVal">${s.offset || 0} ms · raise it if your hits register as late</small></label><input type="range" id="set-offset" min="-200" max="200" step="5" value="${s.offset || 0}"></div>${tog('tts', 'Speak each word', 'Uses your device\'s text-to-speech')}</div>
       <div class="set-group"><h3>Visuals</h3>${sel('particles', 'Particles', [[0, 'Off'], [1, 'Low'], [2, 'High']])}${tog('shake', 'Screen shake')}${tog('floaters', 'Floating numbers')}${tog('bgAnim', 'Animated backgrounds')}${tog('reduce', 'Reduce motion')}${s.rainbow ? tog('rainbowOn', 'Rainbow O\'Toole', 'Secret unlocked!') : ''}</div>
       <div class="set-group"><h3>Game</h3>${sel('numFmt', 'Numbers', [['short', '1.23 M'], ['long', '1.23 million'], ['sci', '1.23e6'], ['eng', '1.23e6 (engineering)']])}${tog('confirmCut', 'Confirm before a Cutaway')}${tog('intro', 'Play the intro on launch')}</div>
       <div class="set-group"><h3>Save</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn sm mint" id="sSave">Save now</button><button class="btn sm sky" id="sExport">Export</button><button class="btn sm" id="sImport">Import</button><button class="btn sm lace" id="sReset">Erase everything</button><button class="btn sm ghost" id="sIntro">Replay intro</button></div>

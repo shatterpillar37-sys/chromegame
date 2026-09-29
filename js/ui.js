@@ -16,7 +16,7 @@
   /* ---------------- settings ---------------- */
   const SET_KEY = 'sneakersOToole.settings';
   U.set = {
-    master: 0.8, music: 0.3, piano: 0.85, sfx: 0.7, voice: 1, no: 1, voiceMode: 'vocals', lineVoice: 'auto', offset: 0, strict: false, tts: false, autoSound: true,
+    master: 0.8, music: 0.3, piano: 0.85, sfx: 0.7, voice: 1, no: 1, voiceMode: 'vocals', lineVoice: 'auto', offset: 0, tts: false, autoSound: true,
     particles: 2, shake: true, floaters: true, bgAnim: true, reduce: false, numFmt: 'short', intro: true, confirmCut: true,
     kazoo: false, rainbow: false, rainbowOn: false, muted: false, tab: 'shop', buyAmt: 1,
   };
@@ -63,7 +63,6 @@
     Object.assign(Snd.vol, { master: s.master * m, music: s.music, piano: s.piano, sfx: s.sfx, voice: s.voice, no: s.no });
     Snd.offset = (s.offset || 0) / 1000;
     Snd.lineVoice = s.lineVoice || 'auto';
-    C.strict = !!s.strict;
     Snd.voice = s.voiceMode; Snd.tts = s.tts; Snd.applyVolumes();
     Object.assign(St.q, { particles: +s.particles, shake: s.shake, floaters: s.floaters, bgAnim: s.bgAnim, reduce: s.reduce });
     C.numFmt = s.numFmt;
@@ -604,7 +603,7 @@
     gl: `<h5>Golden Laces</h5><p>Dropped by bosses. Spend them in the Golden Lace Locker (Cutaway tab).</p>`,
   })[id];
   U.tips.wheel = () => { const w = S().wheel; return `<h5>Wheel of Laces</h5><p>${w.charges ? `<b>${w.charges}</b> free spin${w.charges > 1 ? 's' : ''} ready!` : 'Next free spin in <b>' + C.time((w.next - Date.now()) / 1000) + '</b>'}</p><p>Recharges every ${Math.round(C.wheelPeriod() / 60000)} minutes, even while you're away.</p>`; };
-  U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole (or press ${U.keyName('start')}) to play the piano. Each word falls down one of four columns: press that column's key (${[0, 1, 2, 3].map(U.laneKey).join(' ')}) as it lands on the keycap and he sings it. Keep singing and the next song starts by itself.</p><p>Hit all eleven for a Perfect Verse, and the next song plays 10% faster, so you sing more words per minute. Dropping a word resets the tempo. Mash away: stray presses don't count against you.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
+  U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole (or press ${U.keyName('start')}) to play the piano. Each word falls down one of four columns: press that column's key (${[0, 1, 2, 3].map(U.laneKey).join(' ')}) as it lands on the keycap and he sings it. Keep singing and the next song starts by itself.</p><p>Hit all eleven with no stray presses for a Perfect Verse, and the next song plays 10% faster. Tight hits are Perfect (x1.5). Mashing backfires: a wrong or extra press is a miss and can ruin the next note.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
   U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man comes to take the sneakers. Click him and O'Toole jumps out of reach. Dodge enough and he gives up.</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
   U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man who gives up fills a pip. When it's full, a boss shows up. Wear him out before his timer runs out for Golden Laces!</p>`;
   U.tips.tablock = (id) => ({ tree: `<h5>Lace Tree</h5><p>Unlocks after your first Cutaway.</p>`, sneakers: `<h5>Sneakers</h5><p>Unlocks when you get your first Shoebox. Tuxedo men sometimes drop them.</p>`, cut: `<h5>Cutaway</h5><p>Unlocks as you approach ${f(C.SP_DIV)} lifetime Steps.</p>` })[id];
@@ -837,7 +836,7 @@
     const el = U.modal(`<div class="modal"><button class="x">✕</button><h2>Settings</h2>
       <div class="set-group"><h3>Sound</h3>${slider('master', 'Master')}${slider('piano', 'Piano')}${slider('voice', 'O\'Toole\'s singing')}${slider('music', 'Background music')}${slider('sfx', 'Effects')}${slider('no', 'Voices ("No!" and tuxedo men)')}
         ${sel('voiceMode', 'Singing voice', voices)}${tog('autoSound', 'Hear the Auto-Singer')}${sel('lineVoice', 'Tuxedo men\'s voices', [['auto', 'Recordings (computer voice if missing)'], ['speech', 'Computer voice'], ['off', 'Off']])}</div>
-      <div class="set-group"><h3>Rhythm</h3>${tog('strict', 'Strict timing', 'Wrong or extra key presses count as misses, and only tight hits are Perfect')}<div class="set-row"><label for="set-offset">Timing offset <small id="offVal">${s.offset || 0} ms · raise it if your hits register as late</small></label><input type="range" id="set-offset" min="-200" max="200" step="5" value="${s.offset || 0}"></div>${tog('tts', 'Speak each word', 'Uses your device\'s text-to-speech')}</div>
+      <div class="set-group"><h3>Rhythm</h3><div class="set-row"><label for="set-offset">Timing offset <small id="offVal">${s.offset || 0} ms · raise it if your hits register as late</small></label><input type="range" id="set-offset" min="-200" max="200" step="5" value="${s.offset || 0}"></div>${tog('tts', 'Speak each word', 'Uses your device\'s text-to-speech')}</div>
       <div class="set-group"><h3>Visuals</h3>${sel('particles', 'Particles', [[0, 'Off'], [1, 'Low'], [2, 'High']])}${tog('shake', 'Screen shake')}${tog('floaters', 'Floating numbers')}${tog('bgAnim', 'Animated backgrounds')}${tog('reduce', 'Reduce motion')}${s.rainbow ? tog('rainbowOn', 'Rainbow O\'Toole', 'Secret unlocked!') : ''}</div>
       <div class="set-group"><h3>Game</h3>${sel('numFmt', 'Numbers', [['short', '1.23 M'], ['long', '1.23 million'], ['sci', '1.23e6'], ['eng', '1.23e6 (engineering)']])}${tog('confirmCut', 'Confirm before a Cutaway')}${tog('intro', 'Play the intro on launch')}</div>
       <div class="set-group"><h3>Save</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn sm mint" id="sSave">Save now</button><button class="btn sm sky" id="sExport">Export</button><button class="btn sm" id="sImport">Import</button><button class="btn sm lace" id="sReset">Erase everything</button><button class="btn sm ghost" id="sIntro">Replay intro</button></div>
