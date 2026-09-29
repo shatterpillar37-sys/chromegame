@@ -29,8 +29,8 @@
   }
   St.size = () => ({ W, H, groundY });
   // tall enough to read, short enough to clear the rhythm lane (and its speech bubble) above his head
-  let compact = false;
-  St.charH = () => Math.max(90, Math.min(H * 0.52, 420, groundY - (compact ? 84 : 106) - 30));
+  let compact = false, laneR = 0, otX = 0;
+  St.charH = () => Math.max(90, Math.min(H * 0.55, 420, groundY - 70));
 
   /* ---------------- scene painting ---------------- */
   const rng = (seed) => () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
@@ -314,8 +314,8 @@
     groups.forEach(([kind, n]) => { for (let i = 0; i < n; i++) positions.push([kind, i]); });
     positions.forEach(([kind, i], k) => {
       const side = k % 2 ? 1 : -1, lane = Math.floor(k / 2);
-      const x = W / 2 + side * (W * 0.2 + lane * W * 0.045);
-      if (x < 10 || x > W - 10) return;
+      const x = otX + side * (W * 0.2 + lane * W * 0.045);
+      if (x < laneR + 14 || x > W - 10) return;
       const y = groundY - H * 0.05 - (lane % 2) * H * 0.02;
       const ph = kind === 'choir' ? 0 : Math.max(0, Math.sin((beat + (kind === 'fan' ? 0.5 : 0)) * Math.PI));
       person(c, x, y, sc * (kind === 'kid' ? 0.75 : 0.9), SHIRTS[(k + (kind === 'fan' ? 3 : 0)) % 6], SKINS[k % 5], ph * hopAmp * (St.q.reduce ? 0 : 1), kind, k);
@@ -391,10 +391,15 @@
     ot.style.height = ch + 'px';
     for (const k in otImgs) otImgs[k].style.height = (ch * POSE[k]) + 'px';
     ot.style.bottom = (H - groundY) + 'px';
+    const lane = $('#lyrics');
+    laneR = lane ? lane.offsetLeft + lane.offsetWidth : 0;
+    otX = laneR + (W - laneR) / 2;
+    stage.style.setProperty('--laneR', laneR + 'px');
+    stage.style.setProperty('--otx', otX + 'px');
     document.documentElement.style.setProperty('--charH', ch + 'px');
     document.documentElement.style.setProperty('--ground', (H - groundY) + 'px');
   };
-  St.otCenter = () => ({ x: W / 2, y: groundY - St.charH() * 0.55, top: groundY - St.charH() * 1.02, feet: groundY });
+  St.otCenter = () => ({ x: otX, y: groundY - St.charH() * 0.55, top: groundY - St.charH() * 1.02, feet: groundY });
   St.sing = (crit) => {
     idleT = 0;
     if (asleep) St.wake();
@@ -453,11 +458,10 @@
   /* ---------------- tuxedo men ---------------- */
   const enemyEls = new Map();
   St.enemyX = (e) => {
-    const edge = W * 0.08, mid = W / 2 - St.charH() * 0.28;
-    const p = e.type === 'golden' ? e.p / 2 : Math.min(1, e.p);
-    if (e.type === 'golden') return e.side < 0 ? -80 + (W + 160) * p : W + 80 - (W + 160) * p;
-    const from = -edge, to = mid;
-    return e.side < 0 ? from + (to - from) * p : W - (from + (to - from) * p);
+    // left-side men step out from behind the note lane; everyone stops just short of O'Toole
+    const gap = St.charH() * 0.28, p = e.type === 'golden' ? e.p / 2 : Math.min(1, e.p);
+    if (e.type === 'golden') return e.side < 0 ? laneR - 60 + (W + 140 - laneR) * p : W + 80 - (W + 140 - laneR) * p;
+    return e.side < 0 ? (laneR - 50) + (otX - gap - (laneR - 50)) * p : (W + W * 0.08) - (W + W * 0.08 - otX - gap) * p;
   };
   St.addEnemy = (e) => {
     const el = document.createElement('button');

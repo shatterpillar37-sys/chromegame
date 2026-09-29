@@ -603,7 +603,7 @@
     gl: `<h5>Golden Laces</h5><p>Dropped by bosses. Spend them in the Golden Lace Locker (Cutaway tab).</p>`,
   })[id];
   U.tips.wheel = () => { const w = S().wheel; return `<h5>Wheel of Laces</h5><p>${w.charges ? `<b>${w.charges}</b> free spin${w.charges > 1 ? 's' : ''} ready!` : 'Next free spin in <b>' + C.time((w.next - Date.now()) / 1000) + '</b>'}</p><p>Recharges every ${Math.round(C.wheelPeriod() / 60000)} minutes, even while you're away.</p>`; };
-  U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole (or press ${U.keyName('start')}) to play the piano. Each word slides along one of four rows: press that row's key (${[0, 1, 2, 3].map(U.laneKey).join(' ')}) as it reaches the ring and he sings it.</p><p>Perfect hits earn x1.5. Misses break your combo. Hit all eleven for a Perfect Verse.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
+  U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole (or press ${U.keyName('start')}) to play the piano. Each word falls down one of four columns: press that column's key (${[0, 1, 2, 3].map(U.laneKey).join(' ')}) as it lands on the keycap and he sings it. Keep singing and the next song starts by itself.</p><p>Perfect hits earn x1.5. Misses break your combo. Hit all eleven for a Perfect Verse.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
   U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man comes to take the sneakers. Click him and O'Toole jumps out of reach. Dodge enough and he gives up.</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
   U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man who gives up fills a pip. When it's full, a boss shows up. Wear him out before his timer runs out for Golden Laces!</p>`;
   U.tips.tablock = (id) => ({ tree: `<h5>Lace Tree</h5><p>Unlocks after your first Cutaway.</p>`, sneakers: `<h5>Sneakers</h5><p>Unlocks when you get your first Shoebox. Tuxedo men sometimes drop them.</p>`, cut: `<h5>Cutaway</h5><p>Unlocks as you approach ${f(C.SP_DIV)} lifetime Steps.</p>` })[id];
@@ -613,8 +613,8 @@
   U.laneKey = (i) => U.keyName('lane' + i);
   function buildHud() {
     $('#lyrics').innerHTML = `${[0, 1, 2, 3].map(r => `<div class="lrow" style="--lc:${LANE_COL[r]};--r:${r}"><button class="kcap" data-lane="${r}" aria-label="Lane ${r + 1}"></button></div>`).join('')}
-      ${D.PHRASE.map((p, i) => `<div class="note" data-i="${i}"><span class="lbl">${esc(p.w)}</span></div>`).join('')}
-      <div class="lane-idle">Click O'Toole to start the song</div><div class="judge"></div>`;
+      ${D.PHRASE.map((p, i) => `<div class="note${p.w.length > 5 ? ' long' : ''}" data-i="${i}"><span class="lbl">${esc(p.w)}</span></div>`).join('')}
+      <div class="lane-idle">Click O'Toole or press Space to sing</div><div class="judge"></div>`;
     U.refreshKeys();
     $('.combo-flame').innerHTML = A.icon('combo');
     $('#hud .meter.heat').dataset.tip = 'heat';
@@ -622,31 +622,33 @@
     $$('#lyrics .kcap').forEach(b => b.addEventListener('pointerdown', (e) => { e.preventDefault(); root.Game && root.Game.lane(+b.dataset.lane); }));
   }
   U.refreshKeys = () => { $$('#lyrics .kcap').forEach((b, i) => { b.textContent = U.laneKey(i); }); };
-  // the rhythm lane: word notes slide left along their key's row and reach the ring on their beat
-  const RING_X = 44;
-  const PREVIEW = [0, 2, 1, 3, 2, 0, 3, 1, 2, 0, 3];
-  let laneNotes = null, laneW = 0, playing = false, laneSig = '';
+  // the rhythm lane: word notes fall down their key's column and reach the keycap on their beat.
+  // Notes start above the lane's top edge (each song has a lead-in), so they fly in rather than appear.
+  const TRAVEL = 1.25;   // seconds a note spends crossing the lane
+  let laneNotes = null, playing = false, laneSig = '';
   U.laneFrame = () => {
     const lane = $('#lyrics');
     if (!laneNotes) laneNotes = $$('.note', lane);
-    laneW = lane.clientWidth || laneW;
-    const rowH = (lane.clientHeight - 8) / 4;
-    const pps = Math.max(200, laneW * 0.34);
-    const song = C.song(), t = song ? C.songTime() : -0.7;
-    const lanes = song ? song.lanes : PREVIEW;
+    const song = C.song();
     if (!!song !== playing) { playing = !!song; lane.classList.toggle('playing', playing); }
-    const sig = lanes.join('');
-    if (sig !== laneSig) { laneSig = sig; laneNotes.forEach((el, i) => { el.style.setProperty('--lc', LANE_COL[lanes[i]]); el.dataset.lane = lanes[i]; }); }
+    if (!song) return;
+    const w = lane.clientWidth, h = lane.clientHeight, colW = (w - 12) / 4;
+    const cap = lane.querySelector('.kcap'), capH = cap ? cap.offsetHeight : 28;
+    const hitY = h - 8 - capH / 2, pps = (hitY + 24) / TRAVEL, t = C.songTime();
+    const lanes = song.lanes, sig = lanes.join('');
+    if (sig !== laneSig) { laneSig = sig; laneNotes.forEach((el, i) => { el.style.setProperty('--lc', LANE_COL[lanes[i]]); el.style.setProperty('--colW', colW + 'px'); }); }
     const near = [false, false, false, false];
     laneNotes.forEach((el, i) => {
-      const p = D.PHRASE[i], x = RING_X + (p.t - t) * pps, y = 4 + rowH * (lanes[i] + 0.5);
+      const p = D.PHRASE[i], x = 6 + colW * (lanes[i] + 0.5), y = hitY - (p.t - t) * pps;
       el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-      el.style.opacity = x < -60 || x > laneW + 30 ? 0 : 1;
-      if (song && !song.hits[i] && Math.abs(p.t - t) < 0.09) near[lanes[i]] = true;
+      if (!song.hits[i] && Math.abs(p.t - t) < 0.09) near[lanes[i]] = true;
     });
     $$('.kcap', lane).forEach((b, r) => b.classList.toggle('near', near[r]));
   };
-  U.songStart = () => { (laneNotes || $$('#lyrics .note')).forEach(el => el.classList.remove('perfect', 'good', 'missed', 'auto')); };
+  U.songStart = () => {
+    const notes = laneNotes || $$('#lyrics .note');
+    notes.forEach(el => { el.classList.remove('perfect', 'good', 'missed', 'auto'); el.style.transform = 'translate(-200px, -200px)'; });
+  };
   U.judge = (txt, cls) => {
     const j = $('#lyrics .judge'); j.textContent = txt; j.className = 'judge ' + cls; void j.offsetWidth; j.classList.add('on');
   };

@@ -334,6 +334,8 @@
     const sung = done.hits.filter(h => h && h !== 'miss').length;
     const q = mine === D.PHRASE.length ? 2 : mine >= 9 ? 1 : sung >= 6 ? 0 : -1;
     S.songs = (S.songs || 0) + 1;
+    // keep the songs coming while the player is singing along; sitting one out stops the loop
+    S.autoNext = mine > 0 && S.challenge !== 'silent';
     if (q < 0) { C.emit('songEnd', 0, q, mine); return; }
     let mult = m.verse * (q === 2 ? 3 : q === 1 ? 1.5 : 1) * (0.5 + 0.5 * sung / D.PHRASE.length);
     if (S.encore > 0) { mult *= 10; S.encore--; }
@@ -351,7 +353,7 @@
     C.emit('songEnd', val, q, mine);
   }
   C.accuracy = () => { const st = S.stats; return st.hits + st.misses ? st.hits / (st.hits + st.misses) : 0; };
-  C.stopSong = () => { song = null; };
+  C.stopSong = () => { song = null; S.autoNext = false; };
 
   /* ---------------- tuxedo men ---------------- */
   C.heatRate = (m) => {
@@ -616,7 +618,7 @@
     const m = C.mods();
     S.spTotal += gain; S.sp += gain; S.cuts++;
     S.steps = 0; S.runSteps = 0; S.b = {}; S.up = {};
-    S.enemies = []; S.heat = 0; S.bossMeter = 0; S.stun = 0; S.combo = 0; song = null;
+    S.enemies = []; S.heat = 0; S.bossMeter = 0; S.stun = 0; S.combo = 0; song = null; S.autoNext = false;
     S.buffs = S.buffs.filter(b => b.id === 'frenzy' && false); S.golden = null; S.cams = []; S.encore = 0; S.scout = 0;
     if (m.headStart) { S.b.kid = 10; S.b.fan = 10; S.b.choir = 5; }
     S.scene = S.cuts % D.SCENES.length;
@@ -743,7 +745,8 @@
     if (!song) {
       S.songIdle += dt;
       if (S.combo > 0 && S.songIdle > 3 * m.comboWin) { if (S.combo >= 10) C.emit('comboEnd', S.combo); S.combo = 0; }
-      if (m.auto > 0 && S.songIdle > 1.2) { S.songIdle = 0; C.emit('wantSong'); }
+      if (S.autoNext && S.songIdle > 0.25) { S.songIdle = 0; S.autoNext = false; C.emit('wantSong', false); }
+      else if (m.auto > 0 && S.songIdle > 1.2) { S.songIdle = 0; C.emit('wantSong', true); }
     }
     // heat & spawning
     if (!C.buffActive('repel')) {

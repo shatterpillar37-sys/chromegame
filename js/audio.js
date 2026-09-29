@@ -94,10 +94,12 @@
   // the moment the player is hearing right now, on the audio clock
   S.clock = () => ac ? ac.currentTime - S.latency() - S.offset : performance.now() / 1000 - S.offset;
   let songSrc = null, songT0 = 0;
-  S.songStart = () => {
-    if (!ac || !buffers.piano) { songT0 = S.clock(); return songT0; }
+  // lead = seconds before the piano begins, so the first notes can slide in from the top of the lane
+  S.songStart = (lead) => {
+    lead = lead || 0.04;
+    if (!ac || !buffers.piano) { songT0 = S.clock() + lead; return songT0; }
     S.songStop();
-    const T = ac.currentTime + 0.04;
+    const T = ac.currentTime + lead;
     const src = ac.createBufferSource(); src.buffer = buffers.piano;
     const g = ac.createGain(); g.gain.value = 1;
     src.connect(g); g.connect(bus.piano); g.connect(bus.rev);

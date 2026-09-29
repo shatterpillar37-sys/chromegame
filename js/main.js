@@ -46,13 +46,13 @@
   // the song: one click plays the piano, every on-beat click after that is a sung word
   function startSong(auto) {
     if (C.song()) return;
-    const T = Snd.songStart();
+    const T = Snd.songStart(D.LEAD_IN);
     C.startSong(T, auto);
     Snd.duck(true);
     U.songStart();
     if (!auto) St.sing(false);
   }
-  C.on('wantSong', () => { if (running) startSong(true); });
+  C.on('wantSong', (auto) => { if (running) startSong(auto); });
   C.on('autoVocal', (k, song) => { if (U.set.autoSound) Snd.vocal(k, song.t0, { auto: true }); });
   C.on('word', (i, val, crit, grade, voiced) => {
     const auto = grade === 'auto', song = C.song();
@@ -75,7 +75,7 @@
   C.on('wordMiss', (k) => U.wordMiss(k));
   C.on('songEnd', (val, q, mine) => {
     Snd.duck(false);
-    if (q < 0 && mine === 0 && S().songs <= 3 && !S().stats.hits) U.banner('HOW TO SING', 'Press the keys on the beat!', ' When a word reaches its keycap on the left, press that key (' + [0, 1, 2, 3].map(U.laneKey).join(' ') + ').', 7000);
+    if (q < 0 && mine === 0 && S().songs <= 3 && !S().stats.hits) U.banner('HOW TO SING', 'Press the keys on the beat!', ' When a falling word lands on its keycap on the left, press that key (' + [0, 1, 2, 3].map(U.laneKey).join(' ') + ').', 7000);
   });
   C.on('verse', (val, q, mine) => {
     U.verse(q); Snd.fx('verse', q);
@@ -306,7 +306,7 @@
     Snd.init().then(() => Snd.startMusic());
     St.walkIn();
     if (offlineInfo) setTimeout(() => U.welcome(offlineInfo), 900);
-    else if (S().stats.manualClicks === 0) setTimeout(() => U.banner('HOW TO PLAY', 'Click O\'Toole to start his song!', ' Then press ' + [0, 1, 2, 3].map(U.laneKey).join(' ') + ' as each word reaches its key. On-beat words earn Steps.', 8000), 1200);
+    else if (S().stats.manualClicks === 0) setTimeout(() => U.banner('HOW TO PLAY', 'Click O\'Toole to start his song!', ' Then press ' + [0, 1, 2, 3].map(U.laneKey).join(' ') + ' as each falling word lands on its key. Keep hitting notes and the songs keep coming.', 8000), 1200);
     if (new Date().getHours() === 3) unlockEgg('night', ['Night Owl', 'Hopping at 3 AM. Respect.']);
   }
   function boot(hotData) {

@@ -28,7 +28,8 @@
     said: 'Take them off, I said!',
     letgo: 'Ah, let him go. We\'ll never catch him, not in these shoes.',
   };
-  D.SONG_END = 4.3;          // the piano has finished ringing by here
+  D.SONG_END = 4.3;
+  D.LEAD_IN = 0.9;           // silence before each song so notes can travel down the lane          // the piano has finished ringing by here
   D.WIN_PERFECT = 0.075;     // seconds either side of the beat
   D.WIN_GOOD = 0.15;
   D.CHORDS = { Ab: AB, Db: DB, Eb: EB };
@@ -332,7 +333,8 @@
     [0, 'Man in bow tie reportedly still chasing a pair of sneakers "for years now."'],
     [0, 'Poll: 9 out of 10 people would also not take them off.'],
     [0, 'Gym teacher proposes "sneakers-on" policy for all of life. Motion passes.'],
-    [0, 'Tip: click right as each word reaches the ring. Hit all eleven for a Perfect Verse.'],
+    [0, 'Tip: press each word\'s key as it lands on its keycap. Hit all eleven for a Perfect Verse.'],
+    [0, 'Tip: keep singing and the next song starts by itself.'],
     [0, 'Tip: if hits feel early or late, adjust the timing offset in Settings.'],
     [0, 'Tip: the Golden Sneaker only flies by for a few seconds. Keep your eyes open.'],
     [0, 'Tip: beat a boss before the timer runs out, or he pulls on the laces.'],
