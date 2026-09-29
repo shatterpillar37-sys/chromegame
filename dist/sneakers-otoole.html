@@ -871,7 +871,7 @@ kbd { display: inline-block; min-width: 1.5em; text-align: center; font: 400 .8r
 
 <div id="intro">
   <div class="in-gate" id="inGate">
-    <div class="in-logo"><span class="in-snk" id="gateSnk"></span><h1>Sneakers<br><em>O'Toole</em></h1><p>The incremental game</p></div>
+    <div class="in-logo"><span class="in-snk" id="gateSnk"></span><h1>Sneakers<br><em>O'Toole</em></h1><p>The Long Walk</p></div>
     <button class="btn big" id="inStart">Press to start</button>
     <small>Sound on for the full experience</small>
   </div>
@@ -886,7 +886,7 @@ kbd { display: inline-block; min-width: 1.5em; text-align: center; font: 400 .8r
     <div class="in-words" id="inWords"></div>
     <div class="in-flash" id="inFlash"></div>
     <div class="in-iris" id="inIris"></div>
-    <div class="in-title" id="inTitle"><span class="in-snk" id="titleSnk"></span><h1>Sneakers<br><em>O'Toole</em></h1><p>The incremental game</p><button class="btn big" id="inPlay">Play</button></div>
+    <div class="in-title" id="inTitle"><span class="in-snk" id="titleSnk"></span><h1>Sneakers<br><em>O'Toole</em></h1><p>The Long Walk</p><button class="btn big" id="inPlay">Play</button></div>
   </div>
   <button class="in-skip" id="inSkip" hidden>Skip ›</button>
 </div>
@@ -3380,6 +3380,44 @@ window.ASSETS={
     });
   }
 
+  // bigger buildings show up too: a camera crew tails him, a blimp and a satellite cross the sky
+  function drawEntourage(c) {
+    const s = C.get(), sc = Math.max(0.55, Math.min(1.1, H / 520));
+    if (s.b.sat) {
+      const x = ((t * 34) % (W + 200)) - 100, y = H * 0.07;
+      c.save(); c.translate(x, y); c.rotate(-0.2);
+      c.fillStyle = '#4361ee'; c.fillRect(-26 * sc, -5 * sc, 16 * sc, 10 * sc); c.fillRect(10 * sc, -5 * sc, 16 * sc, 10 * sc);
+      c.strokeStyle = INK; c.lineWidth = 2; c.strokeRect(-26 * sc, -5 * sc, 16 * sc, 10 * sc); c.strokeRect(10 * sc, -5 * sc, 16 * sc, 10 * sc);
+      rrect(c, -8 * sc, -7 * sc, 16 * sc, 14 * sc, 3); c.fillStyle = '#cfd6e6'; c.fill(); outline(c, 2);
+      if ((t * 2) % 1 < 0.5) { c.fillStyle = '#ff4d6d'; c.beginPath(); c.arc(0, -10 * sc, 2.5 * sc, 0, 7); c.fill(); }
+      c.restore();
+    }
+    if (s.b.mall) {
+      const bw = 150 * sc, x = W + bw - ((t * 16) % (W + bw * 2)), y = H * 0.2 + Math.sin(t * 0.7) * 6;
+      c.save(); c.translate(x, y);
+      c.beginPath(); c.ellipse(0, 0, bw / 2, 26 * sc, 0, 0, 7); c.fillStyle = '#e9edf5'; c.fill(); outline(c, 3);
+      c.beginPath(); c.moveTo(bw / 2 - 8 * sc, 0); c.lineTo(bw / 2 + 16 * sc, -20 * sc); c.lineTo(bw / 2 + 16 * sc, 20 * sc); c.closePath(); c.fillStyle = '#ff4d6d'; c.fill(); outline(c, 2.5);
+      rrect(c, -16 * sc, 22 * sc, 32 * sc, 10 * sc, 3); c.fillStyle = '#ffd23f'; c.fill(); outline(c, 2);
+      c.fillStyle = '#ff4d6d'; c.font = `${Math.round(17 * sc)}px 'Lilita One', 'Arial Black', sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText("O'TOOLE", -6 * sc, 1);
+      c.restore();
+    }
+    if (s.b.studio) {
+      // a camera operator walking backwards ahead of him, filming the whole thing
+      const x = Math.min(W - 30 * sc, otX + St.charH() * 0.5 + W * 0.22), y = groundY - H * 0.035, bob = Math.abs(Math.sin(t * 6)) * 4 * sc;
+      c.save(); c.translate(x, y - bob); c.scale(-1, 1);
+      c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(0, bob, 14 * sc, 3.5 * sc, 0, 0, 7); c.fill();
+      c.fillStyle = '#2b2d42'; c.fillRect(-7 * sc, -22 * sc, 6 * sc, 21 * sc); c.fillRect(1 * sc, -22 * sc, 6 * sc, 21 * sc);
+      rrect(c, -10 * sc, -48 * sc, 20 * sc, 28 * sc, 6 * sc); c.fillStyle = '#e0303c'; c.fill(); outline(c, 2);
+      c.beginPath(); c.arc(0, -58 * sc, 10 * sc, 0, 7); c.fillStyle = '#e0ac7e'; c.fill(); outline(c, 2);
+      c.fillStyle = INK; c.fillRect(-10 * sc, -69 * sc, 20 * sc, 5 * sc); c.fillRect(0, -69 * sc, 15 * sc, 3 * sc);
+      rrect(c, 4 * sc, -66 * sc, 24 * sc, 16 * sc, 3); c.fillStyle = '#2b2d42'; c.fill(); outline(c, 2);
+      c.beginPath(); c.arc(30 * sc, -58 * sc, 6 * sc, 0, 7); c.fillStyle = '#4cc9f0'; c.fill(); outline(c, 2);
+      if ((t * 1.5) % 1 < 0.5) { c.fillStyle = '#ff4d6d'; c.beginPath(); c.arc(10 * sc, -62 * sc, 2 * sc, 0, 7); c.fill(); }
+      c.restore();
+    }
+  }
+
   /* ---------------- particles & floating text ---------------- */
   const parts = [];
   const MAXP = [0, 140, 420];
@@ -3738,6 +3776,7 @@ window.ASSETS={
     ot.classList.toggle('walking', walk && pose === 'walk');
     if (walk) ot.style.setProperty('--strut', (0.62 / (0.55 + pace * 0.6)).toFixed(3) + 's');
     drawCrowd(bx);
+    drawEntourage(bx);
     // fx layer
     fx.setTransform(1, 0, 0, 1, 0, 0); fx.clearRect(0, 0, fxc.width, fxc.height); fx.setTransform(DPR, 0, 0, DPR, 0, 0);
     drawParts(fx, dt);
