@@ -87,26 +87,35 @@
     if (q === 2) St.shake(6);
     U.bumpBank();
   });
+  // the chase, as in the cartoon: "Take those sneakers off!" "No!" and he hops away until they give up
+  function tuxLine(e, id, ms) {
+    const len = Snd.line(id);
+    St.enemySay(e, D.LINES[id], ms || Math.max(2400, (len + 0.9) * 1000));
+  }
   C.on('spawn', (e) => {
     Snd.fx('spawn');
-    if (S().stats.enemies === 0 && !S().enemies.some(x => x !== e)) U.banner('LOOK OUT', 'A tuxedo man wants the sneakers!', ' Click him to kick him away before he reaches O\'Toole.', 6000);
-    if (e.type === 'golden') U.banner('RARE', 'A Golden Tuxedo!', ' Kick him before he escapes. He drops 3 Shoeboxes!', 4000);
+    if (e.type === 'golden') { U.banner('RARE', 'A Golden Tuxedo!', ' Click him to make him give up before he runs off. He drops 3 Shoeboxes!', 4000); St.enemySay(e, 'Catch me if you can!'); return; }
+    setTimeout(() => { if (S().enemies.includes(e)) tuxLine(e, 'hey'); }, 450);
+    if (S().stats.enemies === 0 && !S().enemies.some(x => x !== e)) U.banner('LOOK OUT', 'A tuxedo man wants the sneakers!', ' Click him and O\'Toole hops out of reach. Keep dodging until he gives up.', 6500);
   });
-  C.on('bossSpawn', (e) => { Snd.fx('boss'); St.shake(12); U.banner('BOSS', e.name, ' is here for the sneakers! Beat him before his timer runs out.', 5000); });
+  St.onNear = (e) => { if (!e.dead) tuxLine(e, 'said'); };
+  C.on('bossSpawn', (e) => { Snd.fx('boss'); St.shake(12); U.banner('BOSS', e.name, ' is after the sneakers! Wear him out before his timer runs out.', 5000); });
   C.on('hit', (e, dmg, src) => {
     St.enemyHit(e, dmg, src === 'crit');
-    Snd.fx(src === 'crit' ? 'crit' : 'hit', !!e.boss);
-    if (e.boss) St.shake(3);
+    Snd.fx('whoosh');
+    if (!e._saidNo && src !== 'guard' && src !== 'shock') { e._saidNo = 1; Snd.no(); St.sayNo(); U.noBurst('NO!'); }
   });
   C.on('defeat', (e, r) => {
-    St.enemyDefeat(e);
-    Snd.no(e.boss); St.sayNo(); U.noBurst(e.boss ? 'NO!!!' : 'NO!');
-    St.shake(e.boss ? 16 : 7);
+    St.enemyGiveUp(e);
+    const giveUpLine = e.type !== 'golden' && (e.boss || Math.random() < 0.45);
+    if (giveUpLine) setTimeout(() => tuxLine(e, 'letgo', 4200), 250);
+    else if (!e._saidNo) { Snd.no(e.boss); St.sayNo(); U.noBurst('NO!'); }
+    St.shake(e.boss ? 8 : 3);
     const p = enemyPos(e);
     St.float('+' + f(r.steps), p.x, p.y, { size: e.boss ? 36 : 26, color: '#3ddc97', vy: 80, life: 1.3 });
     if (r.boxes) St.float(r.boxes > 1 ? '+' + r.boxes + ' Shoeboxes!' : '+1 Shoebox!', p.x, p.y - 36, { size: 22, color: '#ff9f1c', vy: 60, life: 1.6, force: true });
     if (r.gl) St.float('+' + r.gl + ' Golden Lace' + (r.gl > 1 ? 's' : ''), p.x, p.y - 70, { size: 24, color: '#ffd23f', vy: 50, life: 1.8, force: true });
-    if (e.boss) { U.confetti(120); U.banner('VICTORY', e.name + ' defeated!', ' +' + r.gl + ' Golden Laces and 2 Shoeboxes.', 5000); }
+    if (e.boss) { U.confetti(120); U.banner('ESCAPED', e.name + ' gave up the chase!', ' +' + r.gl + ' Golden Laces and 2 Shoeboxes.', 5000); }
     U.bumpBank();
   });
   C.on('tug', (e, loss) => {
@@ -182,15 +191,16 @@
     window.addEventListener('pointerup', () => { feetDrag = null; });
     $('#sprites').addEventListener('pointerdown', (e) => {
       if (!running) return;
-      const say = e.target.closest('.enemy .say');
       const en = e.target.closest('.enemy');
-      if (say && en) {
-        const id = +en.dataset.id, ee = S().enemies.find(x => x.id === id);
-        if (ee) { St.enemySay(ee, '...please?'); unlockEgg('bubble', ['Polite Society', 'You talked back. He asked nicely this time.']); }
-      }
-      if (en) { e.preventDefault(); C.kick(+en.dataset.id); return; }
+      if (en && !en.classList.contains('dead')) { e.preventDefault(); C.kick(+en.dataset.id); return; }
       if (e.target.closest('.golden-sneaker')) { e.preventDefault(); C.clickGolden(); return; }
       const cam = e.target.closest('.cam'); if (cam) { e.preventDefault(); C.clickCam(+cam.dataset.id); return; }
+    });
+    // talking back to a tuxedo man
+    $('#hud').addEventListener('pointerdown', (e) => {
+      const b = e.target.closest('.tsay'); if (!b || !running) return;
+      const ee = S().enemies.find(x => x.id === +b.dataset.id);
+      if (ee) { St.enemySay(ee, '...please?'); unlockEgg('bubble', ['Polite Society', 'You talked back. He asked nicely this time.']); }
     });
     // poke the sky
     $('#stage').addEventListener('pointerdown', (e) => {

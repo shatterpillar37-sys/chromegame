@@ -22,6 +22,12 @@
     { w: "O'",       t: 3.185, s: 3.170, e: 3.390, sing: [58],     chord: 'Ab', vowel: 'o' },
     { w: 'Toole',    t: 3.435, s: 3.390, e: 3.935, sing: [56],     chord: 'Ab', vowel: 'u' },
   ];
+  // the tuxedo men's lines, in the order they happen in a chase
+  D.LINES = {
+    hey: 'Hey, take those sneakers off!',
+    said: 'Take them off, I said!',
+    letgo: 'Ah, let him go. We\'ll never catch him, not in these shoes.',
+  };
   D.SONG_END = 4.3;          // the piano has finished ringing by here
   D.WIN_PERFECT = 0.075;     // seconds either side of the beat
   D.WIN_GOOD = 0.15;
@@ -84,13 +90,13 @@
   U('combo3', 'Drum Solo', 2e11, 'i:combo', 'Combo cap +50.', { comboCap: 50 }, { combo: 70 });
   U('crit1', 'Lucky Aglets', 8e4, 'i:crit', 'Critical click chance +3%.', { crit: 0.03 }, { crits: 5 });
   U('crit2', 'Sweet Spot', 8e8, 'i:crit', 'Critical clicks x2 stronger.', { critMult: 2 }, { crits: 50 });
-  U('kick1', 'Steel Toes', 2e3, 'i:kick', 'Kick damage +1.', { kick: 1 }, { enemies: 1 });
-  U('kick2', 'Roundhouse', 2e6, 'i:kick', 'Kick damage x2.', { kickMult: 2 }, { enemies: 15 });
-  U('kick3', 'Sneaker Fu', 2e10, 'i:kick', 'Kick damage x2.', { kickMult: 2 }, { enemies: 60 });
-  U('kick4', 'Legendary Stomp', 2e15, 'i:kick', 'Kick damage x3.', { kickMult: 3 }, { enemies: 200 });
+  U('kick1', 'Springy Soles', 2e3, 'i:kick', 'Dodge power +1: tuxedo men give up faster.', { kick: 1 }, { enemies: 1 });
+  U('kick2', 'Side Step', 2e6, 'i:kick', 'Dodge power x2.', { kickMult: 2 }, { enemies: 15 });
+  U('kick3', 'Sneaker Fu', 2e10, 'i:kick', 'Dodge power x2.', { kickMult: 2 }, { enemies: 60 });
+  U('kick4', 'Greased Lightning', 2e15, 'i:kick', 'Dodge power x3.', { kickMult: 3 }, { enemies: 200 });
   U('heat1', 'Low Profile', 5e3, 'i:heat', 'Heat builds 15% slower.', { heat: 0.85 }, { enemies: 3 });
   U('heat2', 'Fake Mustache', 5e7, 'i:heat', 'Heat builds 15% slower.', { heat: 0.85 }, { enemies: 30 });
-  U('loot1', 'Pickpocket', 3e5, 'i:tux', 'Tuxedo men drop x1.5 Steps.', { enemyReward: 1.5 }, { enemies: 10 });
+  U('loot1', 'Pickpocket', 3e5, 'i:tux', 'Tuxedo men who give up drop x1.5 Steps.', { enemyReward: 1.5 }, { enemies: 10 });
   U('loot2', 'Tux Rental Scam', 3e9, 'i:tux', 'Tuxedo men drop x2 Steps.', { enemyReward: 2 }, { enemies: 50 });
   U('luck1', 'Four-Leaf Aglets', 1e6, 'i:luck', 'Luck +10%.', { luck: 0.1 }, { golden: 1 });
   U('luck2', 'Horseshoe Insoles', 1e10, 'i:luck', 'Luck +15%.', { luck: 0.15 }, { golden: 7 });
@@ -112,7 +118,7 @@
   U('prod6', 'Speed of Light', 5e19, 'i:prod', 'All production x1.5.', { prod: 1.5 });
 
   /* ---------------- Tuxedo men ---------------- */
-  // hp in kicks, spd = fraction of the walk per second, sec = seconds of production dropped
+  // hp = persistence: how many dodges before he gives up, spd = fraction of the walk per second, sec = seconds of production dropped
   D.ENEMIES = {
     tux:     { name: 'Tuxedo Guy',      hp: 3,  spd: 0.075, sec: 12, clk: 10, box: 0.04, w: 10, look: { suit: '#1d1b26', tie: '#e0303c', hair: '#2b2118', skin: '#f1c7a1' } },
     waiter:  { name: 'Waiter',          hp: 4,  spd: 0.11,  sec: 25, clk: 12, box: 0.05, w: 6, min: 3, look: { suit: '#232030', tie: '#1d1b26', hair: '#5a3a22', skin: '#e9b98f', towel: 1 } },
@@ -247,17 +253,17 @@
     T('h10', 'hustle', 7, 0, 'h7', 'Sneaker Empire', 500, 'Production x3.', { prod: 3 }),
     T('h11', 'hustle', 8, 0, 'h10', 'Endless Hustle', 1500, 'Production x1.25 per level.', { prod: 1.25 }, 50),
     // Defiance: down
-    T('d1', 'defy', 0, 1, 'root', 'Stubborn', 1, 'Kick damage +2.', { kick: 2 }),
+    T('d1', 'defy', 0, 1, 'root', 'Stubborn', 1, 'Dodge power +2.', { kick: 2 }),
     T('d2', 'defy', -1, 2, 'd1', 'Stay Hidden', 2, 'Heat builds 20% slower.', { heat: 0.8 }),
-    T('d3', 'defy', 1, 2, 'd1', 'Bodyguard', 4, 'A bodyguard kicks tuxedo men once per second.', { guard: 1 }),
+    T('d3', 'defy', 1, 2, 'd1', 'Decoy Sneakers', 4, 'A decoy pair distracts tuxedo men once per second.', { guard: 1 }),
     T('d4', 'defy', 0, 3, 'd1', 'Shakedown', 8, 'Tuxedo men drop x2 Steps.', { enemyReward: 2 }),
     T('d5', 'defy', -1, 4, 'd4', 'Home Turf', 15, 'Boss fights last 15 seconds longer.', { bossTime: 15 }),
-    T('d6', 'defy', 1, 4, 'd4', 'Security Team', 30, 'Bodyguards kick 3 more times per second.', { guard: 3 }),
-    T('d7', 'defy', 0, 5, 'd4', 'Death Grip', 60, 'Tugs steal 75% less. Kick damage x3.', { tug: 0.25, kickMult: 3 }),
+    T('d6', 'defy', 1, 4, 'd4', 'Decoy Warehouse', 30, 'Decoys distract 3 more times per second.', { guard: 3 }),
+    T('d7', 'defy', 0, 5, 'd4', 'Death Grip', 60, 'Tugs steal 75% less. Dodge power x3.', { tug: 0.25, kickMult: 3 }),
     T('d8', 'defy', -1, 6, 'd7', 'Trophy Hunter', 120, 'Bosses drop +2 Golden Laces.', { bossGl: 2 }),
-    T('d9', 'defy', 1, 6, 'd7', 'Shockwave', 200, 'Finishing a verse kicks every tuxedo man on screen.', { verseShock: 1 }),
+    T('d9', 'defy', 1, 6, 'd7', 'Showstopper', 200, 'Finishing a verse wears down every tuxedo man on screen.', { verseShock: 1 }),
     T('d10', 'defy', 0, 7, 'd7', 'The Two Men Give Up', 500, 'Heat builds 40% slower. Tuxedo loot x3.', { heat: 0.6, enemyReward: 3 }),
-    T('d11', 'defy', 0, 8, 'd10', 'Unkickable', 1500, 'Kick damage x1.5 and loot x1.1 per level.', { kickMult: 1.5, enemyReward: 1.1 }, 50),
+    T('d11', 'defy', 0, 8, 'd10', 'Uncatchable', 1500, 'Dodge power x1.5 and loot x1.1 per level.', { kickMult: 1.5, enemyReward: 1.1 }, 50),
     // Fortune: left
     T('f1', 'luck', -1, 0, 'root', 'Beginner\'s Luck', 1, 'Luck +15%.', { luck: 0.15 }),
     T('f2', 'luck', -2, -1, 'f1', 'Gold Rush', 2, 'Golden Sneakers appear 20% more often.', { gold: 1.2 }),
@@ -288,7 +294,7 @@
   /* ---------------- Challenges ("Special Episodes") ---------------- */
   D.CHALLENGES = [
     { id: 'silent', name: 'Silent Film',      goal: 1e10, desc: 'Singing earns nothing. Only buildings produce.', reward: 'Auto-Singer catches 50% more missed words, forever.', fx: { auto: 2 } },
-    { id: 'invasion', name: 'Tux Invasion',   goal: 1e10, desc: 'Heat builds 4x faster and tuxedo men are twice as tough.', reward: 'Kick damage x3, forever.', fx: { kickMult: 3 } },
+    { id: 'invasion', name: 'Tux Invasion',   goal: 1e10, desc: 'Heat builds 4x faster and tuxedo men are twice as persistent.', reward: 'Dodge power x3, forever.', fx: { kickMult: 3 } },
     { id: 'budget', name: 'Budget Episode',   goal: 1e10, desc: 'Buildings get 30% more expensive each (instead of 15%).', reward: 'Buildings cost 10% less, forever.', fx: { cost: 0.9 } },
     { id: 'monotone', name: 'Monotone',       goal: 1e11, desc: 'No verse bonus, no combo, no crits.', reward: 'Verse bonus x5, forever.', fx: { verse: 5 } },
     { id: 'jinx', name: 'Jinxed',             goal: 1e11, desc: 'Luck is zero, and no Golden Sneakers appear.', reward: 'Luck +30%, forever.', fx: { luck: 0.3 } },

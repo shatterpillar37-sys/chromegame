@@ -643,10 +643,10 @@
   ach('ball', 'One of Everything', 'Own at least 1 of every building.', () => D.BUILDINGS.every(b => (S.b[b.id] || 0) >= 1));
   ach('b100all', 'Real Estate Mogul', 'Own 100 of every building.', () => D.BUILDINGS.every(b => (S.b[b.id] || 0) >= 100));
   [[1, 'NO!'], [10, 'Not Today'], [100, 'Dress Code Violation'], [1000, 'Tux Buster'], [5000, 'Black Tie Nightmare']]
-    .forEach(([n, name], i) => ach('enemy' + i, name, 'Defeat ' + C.fmt(n) + ' tuxedo men.', () => st().enemies >= n));
+    .forEach(([n, name], i) => ach('enemy' + i, name, 'Get away from ' + C.fmt(n) + ' tuxedo men.', () => st().enemies >= n));
   [[1, 'Boss Fight'], [5, 'Formal Complaint'], [25, 'Gala Crasher'], [100, 'Etiquette Destroyer']]
-    .forEach(([n, name], i) => ach('boss' + i, name, 'Defeat ' + n + ' bosses.', () => st().bosses >= n));
-  ach('goldtux', 'Gold Standard', 'Defeat a Golden Tuxedo.', () => st().goldenTux >= 1);
+    .forEach(([n, name], i) => ach('boss' + i, name, 'Outlast ' + n + ' bosses.', () => st().bosses >= n));
+  ach('goldtux', 'Gold Standard', 'Outrun a Golden Tuxedo.', () => st().goldenTux >= 1);
   ach('tug10', 'Snug Fit', 'Get your sneakers tugged 10 times. They stayed on.', () => st().tugs >= 10);
   [[1, 'Unboxing'], [10, 'Box Collector'], [100, 'Sneakerhead'], [500, 'Hype Beast'], [2000, 'Warehouse']]
     .forEach(([n, name], i) => ach('box' + i, name, 'Open ' + n + ' Shoeboxes.', () => st().boxesOpened >= n));

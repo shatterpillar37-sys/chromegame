@@ -338,7 +338,7 @@
   /* ----- sneakers ----- */
   let snkSig = '';
   const FXT = {
-    prod: v => `+${Math.round(v * 100)}% production`, click: v => `+${Math.round(v * 100)}% click power`, kick: v => `+${f(v, 1)} kick damage`,
+    prod: v => `+${Math.round(v * 100)}% production`, click: v => `+${Math.round(v * 100)}% click power`, kick: v => `+${f(v, 1)} dodge power`,
     luck: v => `+${Math.round(v * 100)}% luck`, offline: v => `+${Math.round(v * 100)}% offline progress`, verse: v => `+${Math.round(v * 100)}% verse bonus`,
     heat: v => `Heat builds ${Math.round(-v * 100)}% slower`, crit: v => `+${(v * 100).toFixed(1)}% crit chance`, combo: v => `+${Math.round(v)} combo cap`,
     box: v => `+${Math.round(v * 100)}% Shoebox drops`, gold: v => `Golden Sneakers ${Math.round(v * 100)}% more often`, auto: v => `+${f(v, 1)} auto-sung words/sec`,
@@ -538,7 +538,7 @@
       ['Steps per click', f(C.clickBase(m) * C.comboMult(), 1)], ['Total production multiplier', 'x' + f(m.global, 2)],
       ['Clicks', f(st.manualClicks)], ['Songs played', f(s.songs || 0)], ['Words hit on the beat', f(st.hits)], ['Perfect hits', f(st.perfectHits)], ['Misses', f(st.misses)], ['Accuracy', Math.round(C.accuracy() * 100) + '%'], ['Words sung (incl. auto)', f(st.clicks)], ['Verses sung', f(st.verses)], ['Perfect Verses', f(st.perfect)], ['Best verse', f(st.bestVerse)], ['Best combo', f(st.bestCombo)], ['Critical clicks', f(st.crits)],
       ['Buildings owned', f(C.totalBuildings())], ['Upgrades bought (all time)', f(st.upgrades)],
-      ['Tuxedo men defeated', f(st.enemies)], ['Bosses defeated', f(st.bosses)], ['Times tugged', f(st.tugs)], ['Kick damage', f(m.kickDmg, 1)], ['Luck', '+' + Math.round(m.luck * 100) + '%'], ['Crit chance', (m.crit * (1 + m.luck * 0.5) * 100).toFixed(1) + '%'],
+      ['Tuxedo men escaped', f(st.enemies)], ['Bosses outlasted', f(st.bosses)], ['Times tugged', f(st.tugs)], ['Dodge power', f(m.kickDmg, 1)], ['Luck', '+' + Math.round(m.luck * 100) + '%'], ['Crit chance', (m.crit * (1 + m.luck * 0.5) * 100).toFixed(1) + '%'],
       ['Golden Sneakers clicked', f(st.golden)], ['Shoeboxes opened', f(st.boxesOpened)], ['Shiny sneakers found', f(st.shinies)], ['Wheel spins', f(st.wheelSpins)], ['Random events', f(st.events)],
       ['Cutaways', f(s.cuts)], ['Sole Power earned', f(s.spTotal)], ['Golden Laces', f(s.gl)], ['Awards', Object.keys(s.ach).length + '/' + C.ACH.length],
       ['Time played', C.time(st.play)], ['Started', new Date(s.created).toLocaleDateString()],
@@ -548,7 +548,7 @@
 
   /* ---------------- tooltips content ---------------- */
   const costLine = (cost, have, icon) => `<p class="tcost ${have < cost ? 'no' : ''}"><span style="display:inline-block;width:16px;vertical-align:-3px">${A.icon(icon || 'steps')}</span> ${f(cost)}</p>`;
-  U.tips.bank = () => { const s = S(), m = C.mods(); return `<h5>Steps</h5><p>Earned by singing, buildings and kicking tuxedo men.</p><p>Per click: <b>${f(C.clickBase(m) * C.comboMult(), 1)}</b> · Per verse: <b>${f(Math.max(C.clickBase(m) * 5, C.sps(m) * 0.5) * m.verse)}</b></p><p>Production multiplier: <b>x${f(m.global, 2)}</b></p>`; };
+  U.tips.bank = () => { const s = S(), m = C.mods(); return `<h5>Steps</h5><p>Earned by singing, buildings and getting away from tuxedo men.</p><p>Per click: <b>${f(C.clickBase(m) * C.comboMult(), 1)}</b> · Per verse: <b>${f(Math.max(C.clickBase(m) * 5, C.sps(m) * 0.5) * m.verse)}</b></p><p>Production multiplier: <b>x${f(m.global, 2)}</b></p>`; };
   U.tips.bld = (id) => {
     const b = C.BLD[id], s = S(), m = C.mods(), own = s.b[id] || 0, each = C.bldRate(b, m), tot = C.sps(m) || 1;
     const nextTier = D.TIERS.find(t => t.at > own);
@@ -569,8 +569,8 @@
   })[id];
   U.tips.wheel = () => { const w = S().wheel; return `<h5>Wheel of Laces</h5><p>${w.charges ? `<b>${w.charges}</b> free spin${w.charges > 1 ? 's' : ''} ready!` : 'Next free spin in <b>' + C.time((w.next - Date.now()) / 1000) + '</b>'}</p><p>Recharges every ${Math.round(C.wheelPeriod() / 60000)} minutes, even while you're away.</p>`; };
   U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole to play the piano. Then click again each time a word reaches the ring: he sings it and you earn Steps.</p><p>Perfect hits earn x1.5. Misses break your combo. Hit all eleven for a Perfect Verse.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
-  U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man comes to take the sneakers. Click him to kick him away!</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
-  U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man you beat fills a pip. When it's full, a boss shows up. Beat him before his timer runs out for Golden Laces!</p>`;
+  U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man comes to take the sneakers. Click him and O'Toole jumps out of reach. Dodge enough and he gives up.</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
+  U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man who gives up fills a pip. When it's full, a boss shows up. Wear him out before his timer runs out for Golden Laces!</p>`;
   U.tips.tablock = (id) => ({ tree: `<h5>Lace Tree</h5><p>Unlocks after your first Cutaway.</p>`, sneakers: `<h5>Sneakers</h5><p>Unlocks when you get your first Shoebox. Tuxedo men sometimes drop them.</p>`, cut: `<h5>Cutaway</h5><p>Unlocks as you approach ${f(C.SP_DIV)} lifetime Steps.</p>` })[id];
 
   /* ---------------- HUD on the stage ---------------- */
@@ -742,7 +742,7 @@
       <div class="set-group"><h3>Game</h3>${sel('numFmt', 'Numbers', [['short', '1.23 M'], ['long', '1.23 million'], ['sci', '1.23e6'], ['eng', '1.23e6 (engineering)']])}${tog('confirmCut', 'Confirm before a Cutaway')}${tog('intro', 'Play the intro on launch')}</div>
       <div class="set-group"><h3>Save</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn sm mint" id="sSave">Save now</button><button class="btn sm sky" id="sExport">Export</button><button class="btn sm" id="sImport">Import</button><button class="btn sm lace" id="sReset">Erase everything</button><button class="btn sm ghost" id="sIntro">Replay intro</button></div>
         <textarea id="sText" placeholder="Exported save text appears here. To import, paste a save here and press Import."></textarea></div>
-      <div class="set-group"><h3>Keys</h3><p class="muted" style="margin:0">Space: start the song / sing on the beat · F: kick the closest tuxedo man · G: grab the Golden Sneaker · 1-6: tabs · B: buy the cheapest building · M: mute · Esc: close</p></div>
+      <div class="set-group"><h3>Keys</h3><p class="muted" style="margin:0">Space: start the song / sing on the beat · F: dodge the closest tuxedo man · G: grab the Golden Sneaker · 1-6: tabs · B: buy the cheapest building · M: mute · Esc: close</p></div>
       <p class="muted" style="font-size:.8rem">Fan-made, non-commercial. Sneakers O'Toole is from <i>Family Guy</i> (20th Television / Fox).</p></div>`);
     $$('input[type=range]', el).forEach(r => r.oninput = () => {
       s[r.dataset.k] = +r.value; U.applySet();
@@ -799,8 +799,8 @@
     const pool = D.NEWS.filter(([n]) => s.allSteps >= n).map(x => x[1]);
     const dyn = [
       `O'Toole has now sung ${f(s.stats.clicks)} words. Sneakers: still on.`,
-      `${f(s.stats.enemies)} tuxedo men turned away so far. Rental shop "concerned."`,
-      s.stats.bosses ? `Formalwear bosses defeated: ${s.stats.bosses}. Etiquette in shambles.` : null,
+      `${f(s.stats.enemies)} tuxedo men have given up the chase. Rental shop "concerned."`,
+      s.stats.bosses ? `Formalwear bosses who gave up the chase: ${s.stats.bosses}. Etiquette in shambles.` : null,
       C.uniqueSneakers() ? `Collector's corner: ${C.uniqueSneakers()} different sneakers in the closet.` : null,
     ].filter(Boolean);
     const all = pool.concat(dyn);

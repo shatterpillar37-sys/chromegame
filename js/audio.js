@@ -134,6 +134,7 @@
     });
   }
   // sing word i of a song that started at audio time T
+  let lastVoc = null;
   S.vocal = (i, T, opt) => {
     if (!ac) return;
     opt = opt || {};
@@ -142,17 +143,24 @@
     if (S.voice !== 'vocals' || !buffers.vocals) {
       synthVoice(p, Math.max(now, T + p.t), S.voice === 'vocals' ? 'box' : S.voice, gm);
     } else {
-      const from = p.s - 0.012, at = T + from, end = T + p.e + 0.02;
+      // Each sung word keeps going past its own end, so a missed next word never chops the line.
+      // When the next word is hit, the tail hands off at exactly the spot where that word begins
+      // (same recording, same timeline), so the join is seamless instead of doubled.
+      const from = p.s - 0.012, at = T + from, end = T + p.e + 0.55;
       if (end > now + 0.03) {
         const skip = Math.max(0, now - at), start = at + skip;
+        if (lastVoc && lastVoc.T === T && lastVoc.i < i && lastVoc.end > start) {
+          try { lastVoc.g.gain.cancelScheduledValues(start); lastVoc.g.gain.setTargetAtTime(0.0001, start, 0.012); lastVoc.src.stop(start + 0.1); } catch (e) {}
+        }
         const src = ac.createBufferSource(); src.buffer = buffers.vocals;
         const g = ac.createGain();
         g.gain.setValueAtTime(0.0001, start);
         g.gain.linearRampToValueAtTime(1.25 * gm, start + (skip ? 0.015 : 0.006));
-        g.gain.setValueAtTime(1.25 * gm, Math.max(start + 0.02, end - 0.03));
-        g.gain.exponentialRampToValueAtTime(0.0001, end + 0.05);
+        g.gain.setValueAtTime(1.25 * gm, Math.max(start + 0.02, T + p.e + 0.2));
+        g.gain.exponentialRampToValueAtTime(0.0001, end);
         src.connect(g); g.connect(bus.voice); g.connect(bus.rev);
-        src.start(start, from + skip, end - start + 0.08);
+        src.start(start, from + skip, end - start + 0.05);
+        lastVoc = { src, g, i, T, end };
       }
     }
     if (opt.crit) { const t = Math.max(now, T + p.t); tone({ f: mtof(p.sing[0] + 36), type: 'sine', t, len: 0.05, vol: 0.1, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); tone({ f: mtof(p.sing[0] + 43), type: 'sine', t: t + 0.06, len: 0.05, vol: 0.07, a: 0.002, d: 0.3, sus: 0.001, r: 0.4, rev: 1 }); }
@@ -173,6 +181,20 @@
   };
   S.playMelody = S.playFull;
   S.stopMelody = () => { if (fullSrc) try { fullSrc.stop(); } catch (e) {} fullSrc = null; S.songStop(); };
+
+  // tuxedo men's voice lines (line_hey, line_said, line_letgo); one speaks at a time
+  let lineUntil = 0;
+  S.hasLine = (id) => !!buffers['line_' + id];
+  S.line = (id, force) => {
+    if (!ac) return 0;
+    const buf = buffers['line_' + id]; if (!buf) return 0;
+    const now = ac.currentTime;
+    if (!force && now < lineUntil) return 0;
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const g = ac.createGain(); g.gain.value = 1; src.connect(g); g.connect(bus.no);
+    src.start(now + 0.01); lineUntil = now + buf.duration;
+    return buf.duration;
+  };
 
   let lastNo = 0;
   S.no = (force) => {
@@ -198,7 +220,8 @@
   fx.upgrade = () => { const t = ac.currentTime;[0, 4, 7, 12].forEach((s, i) => tone({ f: mtof(72 + s), type: 'triangle', t: t + i * 0.05, len: 0.08, vol: 0.12, rev: 1 })); };
   fx.hit = (big) => { noise({ f: 900, q: 0.8, len: 0.06, vol: big ? 0.5 : 0.35 }); tone({ f: big ? 120 : 160, slide: 60, type: 'sine', len: 0.08, vol: 0.4, a: 0.001 }); };
   fx.crit = () => { fx.hit(true); tone({ f: 1760, slide: 2640, type: 'square', len: 0.06, vol: 0.06, lp: 6000, rev: 1 }); };
-  fx.whoosh = () => noise({ f: 400, fTo: 3000, q: 1.5, len: 0.35, vol: 0.18, a: 0.08, sus: 0.8 });
+  fx.whoosh = () => { noise({ f: 700, fTo: 2600, q: 1.2, len: 0.16, vol: 0.14, a: 0.03, sus: 0.6 }); tone({ f: 520, slide: 900, type: 'sine', len: 0.08, vol: 0.05 }); };
+  fx.whooshBig = () => noise({ f: 400, fTo: 3000, q: 1.5, len: 0.35, vol: 0.18, a: 0.08, sus: 0.8 });
   fx.tug = () => { tone({ f: 500, slide: 120, type: 'sawtooth', len: 0.4, vol: 0.12, lp: 1400 }); noise({ f: 300, len: 0.3, vol: 0.15, ft: 'lowpass' }); };
   fx.spawn = () => { const t = ac.currentTime; tone({ f: 330, type: 'square', t, len: 0.06, vol: 0.05, lp: 2000 }); tone({ f: 311, type: 'square', t: t + 0.09, len: 0.1, vol: 0.05, lp: 2000 }); };
   fx.boss = () => { const t = ac.currentTime;[[44, 56, 63], [43, 55, 62]].forEach((ch, k) => ch.forEach(n => tone({ f: mtof(n), type: 'sawtooth', t: t + k * 0.35, len: 0.3, vol: 0.09, a: 0.02, lp: 1400, sus: 0.8 }))); noise({ f: 120, ft: 'lowpass', len: 0.6, vol: 0.4, t: t + 0.7 }); };

@@ -413,6 +413,23 @@
     St.burst('dust', c.x + (Math.random() - 0.5) * 40, c.feet - 4, 3, { speed: 60, gravity: -40, size: 7, color: 'rgba(255,255,255,.7)', life: 0.5 });
     if (Math.random() < 0.5) St.burst('note', c.x + 30, c.top + 40, 1, { angle: -1.2, spread: 0.6, speed: 90, gravity: -30, size: 7, colors: ['#ffd23f', '#ff4d6d', '#4cc9f0', '#3ddc97'], txt: Math.random() < 0.5 ? '♪' : '♫', life: 1.2 });
   };
+  // hop out of reach, away from the grabbing hand
+  St.dodge = (away, big) => {
+    idleT = 0; if (asleep) St.wake(true);
+    St.setPose('walk', 380);
+    const d = away * (big ? 46 : 30), up = big ? -48 : -32;
+    otRig.getAnimations().forEach(a => a.id === 'hop' && a.cancel());
+    const an = otRig.animate([
+      { transform: 'translate(0,0) scale(1,1)' },
+      { transform: 'translate(0,3px) scale(1.08,.9)', offset: 0.12 },
+      { transform: `translate(${d}px, ${up}px) rotate(${away * 6}deg) scale(.96,1.05)`, offset: 0.45 },
+      { transform: `translate(${d * 0.6}px, 0) scale(1.04,.96)`, offset: 0.75 },
+      { transform: 'translate(0,0) scale(1,1)' },
+    ], { duration: St.q.reduce ? 1 : 420, easing: 'ease-out' });
+    an.id = 'hop';
+    const c = St.otCenter();
+    St.burst('dust', c.x, c.feet - 4, 4, { speed: 80, gravity: -40, size: 8, color: 'rgba(255,255,255,.7)', life: 0.5 });
+  };
   St.flinch = () => {
     otRig.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-3deg) translateX(-3px)' }, { transform: 'rotate(2deg)' }, { transform: 'rotate(0)' }], { duration: St.q.reduce ? 1 : 220 });
   };
@@ -445,49 +462,83 @@
   St.addEnemy = (e) => {
     const el = document.createElement('button');
     el.className = 'enemy walk' + (e.boss ? ' boss' : '') + (e.big ? ' big' : '') + (e.type === 'golden' ? ' golden' : '');
-    el.setAttribute('aria-label', 'Kick ' + e.name);
+    el.setAttribute('aria-label', 'Dodge ' + e.name);
     el.innerHTML = `<div class="en-body">${A.tux(e.look)}</div><div class="hp"><i></i></div><div class="say"></div>`;
     el.dataset.id = e.id;
     $('#sprites').appendChild(el);
     enemyEls.set(e.id, el);
     el.style.setProperty('--dir', e.side < 0 ? 1 : -1);
-    if (e.type !== 'golden' && Math.random() < 0.7) setTimeout(() => St.enemySay(e, ['Take them off!', 'Sneakers OFF!', 'This is a black-tie event!', 'Remove the footwear, sir!', 'Take them off!!'][Math.floor(Math.random() * 5)]), 600 + Math.random() * 1500);
     if (e.type === 'golden') St.enemySay(e, 'Catch me!');
     return el;
   };
-  St.enemySay = (e, txt) => {
-    const el = enemyEls.get(e.id); if (!el) return;
-    const s = el.querySelector('.say'); s.textContent = txt; s.classList.remove('on'); void s.offsetWidth; s.classList.add('on');
+  // speech bubbles live in the HUD layer (above banners, never mirrored) and follow their speaker
+  const bubbles = new Map();
+  St.enemySay = (e, txt, ms) => {
+    const owner = enemyEls.get(e.id) || leaving.get(e.id); if (!owner) return;
+    let b = bubbles.get(e.id);
+    if (!b) { b = { el: document.createElement('div'), owner }; b.el.className = 'tsay'; b.el.dataset.id = e.id; $('#hud').appendChild(b.el); bubbles.set(e.id, b); }
+    b.el.textContent = txt; b.until = performance.now() + (ms || 2400);
+    b.el.classList.toggle('long', txt.length > 22);
+    b.el.classList.remove('on', 'out'); void b.el.offsetWidth; b.el.classList.add('on');
+    placeBubble(b);
   };
+  function placeBubble(b) {
+    const r = b.owner.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+    const w = b.el.offsetWidth, h = b.el.offsetHeight, cx = r.left + r.width / 2 - sr.left;
+    const left = Math.max(8, Math.min(W - w - 8, cx - w / 2));
+    b.el.style.left = left + 'px';
+    b.el.style.top = Math.max(4, r.top - sr.top - h + r.height * 0.02) + 'px';
+    b.el.style.setProperty('--tail', Math.max(14, Math.min(w - 14, cx - left)) + 'px');
+  }
+  function updateBubbles() {
+    const now = performance.now();
+    bubbles.forEach((b, id) => {
+      if (!b.owner.isConnected || now > b.until + 300) { b.el.remove(); bubbles.delete(id); return; }
+      if (now > b.until) b.el.classList.add('out');
+      placeBubble(b);
+    });
+  }
+  // a grab at the sneakers: he lunges, O'Toole hops out of reach
   St.enemyHit = (e, dmg, crit) => {
     const el = enemyEls.get(e.id); if (!el) return;
     el.querySelector('.hp i').style.width = Math.max(0, e.hp / e.max * 100) + '%';
     el.classList.add('show-hp');
     const body = el.querySelector('.en-body');
-    body.animate([{ filter: 'brightness(3)', transform: 'translateX(0) rotate(0)' }, { filter: 'brightness(1)', transform: `translateX(${e.side * -10}px) rotate(${e.side * -6}deg)` }, { transform: 'translateX(0) rotate(0)' }], { duration: 220 });
-    const x = St.enemyX(e), y = groundY - St.charH() * (e.big ? 0.7 : 0.6);
-    St.burst('spark', x, y, crit ? 10 : 5, { speed: 280, size: crit ? 12 : 8, colors: ['#ffd23f', '#ffffff', '#ff9f1c'], gravity: 300, life: 0.4 });
-    St.float((crit ? 'CRIT ' : '') + '-' + C.fmt(dmg), x, y - 30, { size: crit ? 26 : 18, color: crit ? '#ffd23f' : '#ffffff', vy: 110, life: 0.7 });
+    body.animate([{ transform: 'translateX(0) rotate(0)' }, { transform: 'translateX(22px) translateY(6px) rotate(14deg)', offset: 0.35 }, { transform: 'translateX(-4px) rotate(-3deg)', offset: 0.75 }, { transform: 'translateX(0) rotate(0)' }], { duration: 360, easing: 'ease-out' });
+    St.dodge(e.side < 0 ? 1 : -1, crit);
+    const x = St.enemyX(e) + (e.side < 0 ? 1 : -1) * St.charH() * 0.2, y = groundY - St.charH() * 0.35;
+    St.burst('dust', x, y, crit ? 6 : 3, { speed: 90, gravity: -20, size: 9, color: 'rgba(255,255,255,.75)', life: 0.5 });
+    St.float(crit ? 'BIG DODGE!' : 'Missed!', St.enemyX(e), groundY - St.charH() * 1.05, { size: crit ? 24 : 17, color: crit ? '#ffd23f' : '#ffffff', vy: 90, life: 0.7 });
   };
-  St.enemyDefeat = (e) => {
+  // he's out of breath: stumble, shake it off, then trudge back the way he came
+  const leaving = new Map();
+  St.enemyGiveUp = (e) => {
     const el = enemyEls.get(e.id); if (!el) return;
-    enemyEls.delete(e.id);
-    el.classList.remove('walk'); el.classList.add('dead');
-    const dir = e.side < 0 ? -1 : 1;
-    const x = St.enemyX(e), y = groundY - St.charH() * 0.5;
-    St.burst('spark', x, y, 18, { speed: 380, size: 12, colors: ['#ffd23f', '#ffffff', '#ff4d6d'], gravity: 400, life: 0.6 });
-    St.burst('ring', x, y, 1, { speed: 0, size: 90, color: '#ffffff', gravity: 0, life: 0.4 });
-    el.animate([
-      { transform: `translateX(-50%) translate(0,0) rotate(0) scaleX(${e.side < 0 ? 1 : -1})` },
-      { transform: `translateX(-50%) translate(${dir * W * 0.35}px, ${-H * 0.7}px) rotate(${dir * 720}deg) scaleX(${e.side < 0 ? 1 : -1})`, opacity: 0.9 },
-    ], { duration: 900, easing: 'cubic-bezier(.2,.6,.4,1)', fill: 'forwards' }).onfinish = () => el.remove();
+    enemyEls.delete(e.id); leaving.set(e.id, el);
+    el.classList.add('dead', 'gaveup'); el.classList.remove('near', 'grab', 'show-hp');
+    const face = e.side < 0 ? 1 : -1, x0 = St.enemyX(e), x1 = e.side < 0 ? -W * 0.15 : W * 1.15;
+    const body = el.querySelector('.en-body');
+    body.animate([{ transform: 'rotate(0)' }, { transform: 'translateY(10px) rotate(22deg)', offset: 0.3 }, { transform: 'translateY(14px) rotate(26deg)', offset: 0.55 }, { transform: 'translateY(4px) rotate(8deg)' }], { duration: 650, easing: 'ease-out', fill: 'forwards' });
+    St.burst('dust', x0 + face * 30, groundY - 6, 6, { speed: 120, gravity: -30, size: 10, color: 'rgba(255,255,255,.7)', life: 0.6 });
+    setTimeout(() => {
+      if (!el.isConnected) return;
+      el.classList.add('walk', 'turned');
+      body.getAnimations().forEach(a => a.cancel());
+      body.style.transform = 'rotate(6deg) translateY(4px)';
+      const dur = Math.abs(x1 - x0) / Math.max(120, W * 0.22) * 1000;
+      el.animate([
+        { transform: `translateX(-50%) scaleX(${-face})` },
+        { transform: `translateX(calc(-50% + ${x1 - x0}px)) scaleX(${-face})` },
+      ], { duration: St.q.reduce ? 1 : dur, easing: 'linear', fill: 'forwards' }).onfinish = () => { el.remove(); leaving.delete(e.id); };
+    }, St.q.reduce ? 1 : 650);
   };
+  St.enemyDefeat = St.enemyGiveUp;
   St.enemyLeave = (e) => {
     const el = enemyEls.get(e.id); if (!el) return;
     enemyEls.delete(e.id);
     el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: 'forwards' }).onfinish = () => el.remove();
   };
-  St.clearEnemies = () => { enemyEls.forEach(el => el.remove()); enemyEls.clear(); };
+  St.clearEnemies = () => { enemyEls.forEach(el => el.remove()); enemyEls.clear(); leaving.forEach(el => el.remove()); leaving.clear(); bubbles.forEach(b => b.el.remove()); bubbles.clear(); };
   function updateEnemies() {
     const s = C.get(), live = new Set();
     for (const e of s.enemies) {
@@ -499,6 +550,8 @@
       el.classList.toggle('walk', walking);
       el.classList.toggle('flee', !!e.flee);
       if (e.flee) el.style.setProperty('--dir', e.side < 0 ? -1 : 1);
+      const near = e.boss ? e.p >= 0.62 : e.type !== 'golden' && e.p > 0.62;
+      if (near && !e._near) { e._near = 1; St.onNear && St.onNear(e); }
       el.classList.toggle('near', !e.boss && e.type !== 'golden' && e.p > 0.72);
       el.classList.toggle('grab', !!e.boss && e.p >= 0.62);
     }
@@ -563,7 +616,7 @@
     // fx layer
     fx.setTransform(1, 0, 0, 1, 0, 0); fx.clearRect(0, 0, fxc.width, fxc.height); fx.setTransform(DPR, 0, 0, DPR, 0, 0);
     drawParts(fx, dt);
-    updateEnemies(); updateGolden(); updateCams();
+    updateEnemies(); updateBubbles(); updateGolden(); updateCams();
     // pose timing, idle & sleep
     if (poseUntil && performance.now() > poseUntil) { poseUntil = 0; St.setPose('stand'); }
     idleT += dt;

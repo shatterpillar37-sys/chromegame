@@ -149,11 +149,22 @@ main#main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px
 .enemy .hp { position: absolute; left: 50%; top: -14px; width: 70%; height: 10px; transform: translateX(-50%) scaleX(var(--dir, 1)); background: var(--ink); border-radius: 99px; padding: 2px; opacity: 0; transition: opacity .2s; }
 .enemy .hp i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--lace), #ff8fa3); border-radius: 99px; transition: width .15s; }
 .enemy.show-hp .hp, .enemy.boss .hp { opacity: 1; }
-.enemy .say { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) scaleX(var(--dir, 1)) scale(0); background: #fff; color: #c1121f; border: 3px solid var(--ink); border-radius: 14px; padding: 4px 10px 3px; font: 400 .9rem/1.1 var(--font-d); white-space: nowrap; margin-bottom: 18px; transition: transform .2s cubic-bezier(.3,1.6,.5,1); }
+.enemy .say { position: absolute; bottom: 100%; left: 50%; transform: translateX(calc(-50% + var(--sx, 0px))) scaleX(var(--dir, 1)) scale(0); background: #fff; color: #c1121f; border: 3px solid var(--ink); border-radius: 14px; padding: 4px 10px 3px; font: 400 .9rem/1.1 var(--font-d); white-space: nowrap; margin-bottom: 18px; transition: transform .2s cubic-bezier(.3,1.6,.5,1); }
 .enemy .say::after { content: ''; position: absolute; left: 30%; top: 100%; border: 8px solid transparent; border-top-color: var(--ink); }
-.enemy .say.on { transform: translateX(-50%) scaleX(var(--dir, 1)) scale(1); animation: sayOut 2.4s forwards; }
+.enemy .say.on { transform: translateX(calc(-50% + var(--sx, 0px))) scaleX(var(--dir, 1)) scale(1); animation: sayOut 2.4s forwards; }
+.enemy .say.long { white-space: normal; width: max-content; max-width: calc(var(--charH) * 1.3); text-align: center; font-size: .82rem; }
+.enemy.turned .say.on { transform: translateX(calc(-50% + var(--sx, 0px))) scaleX(calc(var(--dir, 1) * -1)) scale(1); }
+.enemy.gaveup .hp { display: none; }
 @keyframes sayOut { 85% { opacity: 1; } 100% { opacity: 0; } }
 .enemy.dead { pointer-events: none; }
+.tsay { position: absolute; left: 0; top: 0; z-index: 7; background: #fff; color: #c1121f; border: 3px solid var(--ink); border-radius: 14px; padding: 5px 10px 4px; font: 400 .92rem/1.15 var(--font-d); white-space: nowrap; box-shadow: 0 3px 0 rgba(27,19,48,.5); transform: scale(0); transform-origin: var(--tail, 50%) 100%; cursor: pointer; }
+.tsay::after { content: ''; position: absolute; left: var(--tail, 50%); top: 100%; margin-left: -8px; border: 8px solid transparent; border-top-color: var(--ink); }
+.tsay.long { white-space: normal; width: max-content; max-width: min(260px, 60%); text-align: center; }
+.tsay.on { animation: tsayIn .25s cubic-bezier(.3,1.6,.5,1) forwards; }
+.tsay.out { animation: tsayOut .3s ease-in forwards; }
+@keyframes tsayIn { to { transform: scale(1); } }
+@keyframes tsayOut { from { transform: scale(1); opacity: 1; } to { transform: scale(.8); opacity: 0; } }
+#stage.compact .tsay { font-size: .75rem; padding: 3px 7px 2px; }
 
 /* golden sneaker & cameras */
 .golden-sneaker { position: absolute; left: 0; top: 0; width: 110px; padding: 18px; margin: -18px; z-index: 4; filter: drop-shadow(0 0 12px rgba(255,210,63,.9)); }
