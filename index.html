@@ -27,6 +27,7 @@
     </div>
     <div class="chips" id="chips"></div>
     <div class="tools">
+      <button id="btnHelp" class="tool" aria-label="How to play"><span class="ti" id="icoHelp"></span></button>
       <button id="btnWheel" class="tool" aria-label="Wheel of Laces"><span class="ti" id="icoWheel"></span><i class="dot" id="wheelDot" hidden>1</i></button>
       <button id="btnMute" class="tool" aria-label="Mute"><span class="ti" id="icoMute"></span></button>
       <button id="btnSettings" class="tool" aria-label="Settings"><span class="ti" id="icoGear"></span></button>
@@ -60,7 +61,15 @@
           <div class="meter heat" data-tip="heat"><span class="m-ico" id="icoHeat"></span><div class="m-bar"><i id="heatFill"></i></div></div>
           <div class="meter bossm" data-tip="bossmeter"><span class="m-ico" id="icoBoss"></span><div class="pips" id="bossPips"></div></div>
         </div>
-        <div id="sceneTag" class="scene-tag"></div>
+        <div id="journey" class="journey" data-tip="journey">
+          <div class="jr-row"><span class="jr-here"><small id="jrStop">STOP 0</small><b id="jrHere">Spooner Street</b></span><span class="jr-next"><small>NEXT STOP</small><b id="jrNext">The Drunken Clam</b></span></div>
+          <div class="jr-track"><i class="jr-fill" id="jrFill"></i><span class="jr-flag"></span><span class="jr-me" id="jrMe"></span></div>
+        </div>
+        <div id="arrive" class="arrive"><small class="ar-tag">NOW ARRIVING</small><b class="ar-name"></b><p class="ar-blurb"></p><div class="ar-loot"></div></div>
+        <div id="hype" class="hype">
+          <div class="hy-meter" data-tip="hype"><span class="hy-lbl">HYPE</span><div class="hy-bar"><i id="hyFill"></i></div><span class="hy-n" id="hyN">0</span></div>
+          <div class="hy-moves" id="hyMoves"></div>
+        </div>
         <div id="chTag" class="ch-tag" hidden></div>
       </div>
     </section>

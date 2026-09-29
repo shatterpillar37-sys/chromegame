@@ -19,7 +19,7 @@
   C.emit = (ev, ...a) => { (handlers[ev] || []).forEach(f => { try { f(...a); } catch (e) { console.error(e); } }); };
 
   /* ---------------- state ---------------- */
-  const SP_DIV = 1e11;          // lifetime Steps needed for the first Sole Power
+  const SP_DIV = 1e13;          // lifetime Steps needed for the first Sole Power
   C.SP_DIV = SP_DIV;
   C.defaults = () => ({
     v: 2, created: Date.now(), savedAt: Date.now(), time: 0,
@@ -32,7 +32,7 @@
     buffs: [],
     boxes: 0, shards: 0, sp: 0, spTotal: 0, gl: 0,
     sneakers: {}, equip: [null, null, null, null, null], pity: { e: 0, l: 0 },
-    ach: {}, cuts: 0, scene: 0,
+    ach: {}, cuts: 0, scene: 0, stop: 0, bestStop: 0, hype: 0, cd: [0, 0, 0],
     challenge: null, chStart: 0, chDone: {},
     wheel: { charges: 1, next: Date.now() + 20 * 60e3 },
     shinyOToole: 0,
@@ -40,6 +40,7 @@
       clicks: 0, manualClicks: 0, verses: 0, perfect: 0, bestCombo: 0, crits: 0, enemies: 0, bosses: 0, goldenTux: 0,
       tugs: 0, boxesOpened: 0, shinies: 0, golden: 0, wheelSpins: 0, jackpots: 0, events: 0, play: 0, bestSps: 0,
       upgrades: 0, stepsClicked: 0, bestVerse: 0, best: {}, bosskills: {}, hits: 0, perfectHits: 0, misses: 0,
+      stops: 0, struts: 0, shows: 0, sprints: 0, hypeSpent: 0, laps: 0,
     },
     toggles: { autobox: false, autobuy: false, autoup: false },
   });
@@ -56,6 +57,7 @@
     S = merge(C.defaults(), obj || {});
     S.enemies = []; S.golden = null; S.cams = [];
     if (!Array.isArray(S.equip)) S.equip = [null, null, null, null, null];
+    if (!Array.isArray(S.cd)) S.cd = [0, 0, 0];
     while (S.equip.length < 5) S.equip.push(null);
     C.refresh();
     return S;
@@ -97,7 +99,7 @@
   };
 
   /* ---------------- modifiers ---------------- */
-  const ADD = new Set(['clickSps', 'crit', 'comboCap', 'kick', 'bossTime', 'bossGl', 'guard', 'luck', 'offline', 'offlineCap', 'auto', 'spEff', 'verseShock', 'headStart']);
+  const ADD = new Set(['clickSps', 'crit', 'comboCap', 'kick', 'bossTime', 'bossGl', 'guard', 'luck', 'offline', 'offlineCap', 'auto', 'spEff', 'verseShock', 'headStart', 'hypeRegen', 'strutAdd', 'journeyAdd']);
   function applyFx(m, fx, lv) {
     lv = lv || 1;
     for (const k in fx) {
@@ -122,6 +124,7 @@
       heat: 1, enemyReward: 1, bossTime: 30, bossReward: 1, bossGl: 0, tug: 1, guard: 0, luck: 0, box: 1, shiny: 1,
       gold: 1, goldDur: 1, wheel: 1, shards: 1, offline: 0.5, offlineCap: 12, cost: 1, auto: 0, collect: 1, fame: 1,
       spEff: 0.02, verseShock: 0, mythic: 1, pity: 1, headStart: 0, bld: {}, loot: 1, heatRate: 1, noEnemy: false,
+      hypeGain: 1, hypeRegen: 0, strutDur: 1, strutAdd: 0, showMult: 1, journeyAdd: 0, arrive: 1, moveCd: 1,
     };
     for (const id in S.up) { const u = UP[id]; if (u) applyFx(m, u.fx); }
     for (const id in S.tree) { const n = TREE[id]; if (n && S.tree[id] > 0) applyFx(m, n.fx, S.tree[id]); }
@@ -148,7 +151,8 @@
     m.collection = (uniq * 0.02 + shinies * 0.02) * m.collect;
     m.achBonus = Object.keys(S.ach).length * 0.01 * m.fame;
     m.spBonus = C.effSp(S.spTotal) * m.spEff;
-    m.global = m.prod * (1 + m.spBonus) * (1 + m.achBonus) * (1 + m.collection);
+    m.journey = Math.pow(D.STOP_BONUS + m.journeyAdd, S.stop || 0);
+    m.global = m.prod * (1 + m.spBonus) * (1 + m.achBonus) * (1 + m.collection) * m.journey;
     m.kickDmg = Math.max(1, (1 + m.kick) * m.kickMult);
     M = m;
     return m;
@@ -229,6 +233,11 @@
     if (r.unique && C.uniqueSneakers() < r.unique) return false;
     if (r.ach && Object.keys(S.ach).length < r.ach) return false;
     if (r.steps && S.runSteps < r.steps) return false;
+    if (r.hits && st.hits < r.hits) return false;
+    if (r.hypeSpent && (st.hypeSpent || 0) < r.hypeSpent) return false;
+    if (r.struts && (st.struts || 0) < r.struts) return false;
+    if (r.shows && (st.shows || 0) < r.shows) return false;
+    if (r.stops && (st.stops || 0) < r.stops) return false;
     return true;
   };
   C.upCost = (u) => u.cost;
@@ -312,6 +321,7 @@
     S.combo++; if (S.combo > S.stats.bestCombo) S.stats.bestCombo = S.combo;
     S.stats.hits++; if (grade === 'perfect') S.stats.perfectHits++;
     const { val, crit } = award(best, grade, m);
+    C.addHype((grade === 'perfect' ? 2 : 1.25) * (crit ? 1.5 : 1));
     C.emit('word', best, val, crit, grade, voiced, t - D.PHRASE[best].t);
     stride(false, crit);
     return { res: grade, idx: best, val, crit };
@@ -332,6 +342,7 @@
         if (song.planned[k]) {
           song.hits[k] = 'auto';
           const { val } = award(k, 'auto', m);
+          C.addHype(0.5);
           C.emit('word', k, val, false, 'auto', true, 0);
           stride(true, false);
         } else {
@@ -365,7 +376,7 @@
     const val = S.challenge === 'monotone' || S.challenge === 'silent' ? 0 : Math.max(C.clickBase(m) * 5, C.sps(m) * 0.5) * mult;
     C.gain(val);
     S.stats.verses++;
-    if (q === 2) S.stats.perfect++;
+    if (q === 2) { S.stats.perfect++; C.addHype(10); }
     if (val > S.stats.bestVerse) S.stats.bestVerse = val;
     if (m.verseShock) S.enemies.slice().forEach(e => C.damage(e, m.kickDmg * 3, 'shock'));
     // Shiny O'Toole: a very rare glow-up
@@ -441,12 +452,14 @@
       steps = (C.sps(m) * 600 + C.clickBase(m) * 200) * loot * m.bossReward;
       gl = 1 + m.bossGl; boxes = 2;
       S.stats.bosses++; S.stats.bosskills[e.boss] = (S.stats.bosskills[e.boss] || 0) + 1;
+      C.addHype(25);
     } else {
       const t = D.ENEMIES[e.type];
       steps = (C.sps(m) * t.sec + C.clickBase(m) * t.clk) * loot;
       if (t.boxes) boxes = t.boxes;
       else if (R() < t.box * m.box * (1 + m.luck)) boxes = 1;
       S.stats.enemies++; S.bossMeter++;
+      C.addHype(4);
       if (e.type === 'golden') S.stats.goldenTux++;
     }
     steps = Math.max(steps, 10);
@@ -464,6 +477,99 @@
     if (e.boss) S.bossMeter = Math.floor(C.bossNeed() / 2);
     C.emit('tug', e, loss);
   }
+
+  /* ---------------- the Long Walk: stops along the route ---------------- */
+  C.stopAt = (k) => k <= 0 ? 0 : D.STOP_BASE * Math.pow(10, k - 1);
+  C.stopInfo = (k) => {
+    const n = D.STOPS.length, lap = Math.floor(k / n), st = D.STOPS[((k % n) + n) % n];
+    return { k, name: st.name + (lap ? ' ' + ['', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][Math.min(lap, 9)] : ''), base: st.name, scene: st.scene, blurb: st.blurb, lap };
+  };
+  C.stopProgress = () => {
+    const a = C.stopAt(S.stop), b = C.stopAt(S.stop + 1);
+    if (S.runSteps <= a) return 0;
+    // log scale inside the leg, so the marker moves steadily while production grows exponentially
+    const lo = Math.log10(Math.max(1, a || b / 10)), hi = Math.log10(b), v = Math.log10(Math.max(1, S.runSteps));
+    return Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+  };
+  // what arriving at stop k pays out
+  C.arrivalReward = (k, m) => {
+    m = m || C.mods();
+    return {
+      steps: Math.max(C.stopAt(k) * 0.02, C.baseSps(m) * 20) * m.arrive,
+      boxes: Math.round((k % 2 === 0 ? 1 : 0) * m.arrive),
+      gl: k % 4 === 0 ? 1 : 0,
+      hype: 20,
+    };
+  };
+  function checkStops(quiet) {
+    let n = 0;
+    while (S.runSteps >= C.stopAt(S.stop + 1) && n < 50) {
+      n++;
+      const k = ++S.stop;
+      const r = C.arrivalReward(k);
+      C.gain(r.steps); S.boxes += r.boxes; S.gl += r.gl; C.addHype(r.hype);
+      S.stats.stops++;
+      const first = k > S.bestStop;
+      if (first) S.bestStop = k;
+      if (k % D.STOPS.length === 0) S.stats.laps++;
+      S.scene = C.stopInfo(k).scene;
+      C.refresh();
+      C.emit('arrive', C.stopInfo(k), r, { quiet: quiet || n > 1, first });
+      if (r.boxes) C.emit('boxDrop', r.boxes, 'stop');
+    }
+  }
+  C.checkStops = checkStops;
+  // the stop where the first Sole Power becomes reachable
+  C.cutStop = () => Math.ceil(Math.log10(SP_DIV / D.STOP_BASE) - 1e-9) + 1;
+
+  // how briskly O'Toole walks (0..~1.6): faster with more production and while strutting; a boss stops him in his tracks
+  C.pace = () => {
+    const boss = C.bossActive(); if (boss && boss.p >= 1) return 0;
+    const sps = C.baseSps(); if (!(sps > 0)) return 0;
+    return Math.min(1, 0.3 + 0.07 * Math.log10(1 + sps)) * (C.buffActive('strut') ? 1.6 : 1);
+  };
+
+  /* ---------------- Hype & moves ---------------- */
+  C.addHype = (x) => {
+    if (!(x > 0)) return;
+    const was = S.hype;
+    S.hype = Math.min(D.HYPE_MAX, S.hype + x * C.mods().hypeGain);
+    D.MOVES.forEach((mv, i) => { if (was < mv.cost && S.hype >= mv.cost) C.emit('moveReady', i, mv); });
+  };
+  C.moveCost = (i) => D.MOVES[i].cost;
+  C.moveBlocked = (i) => {
+    const mv = D.MOVES[i];
+    if (mv.id === 'strut' && C.buffActive('strut')) return 'Already strutting';
+    if (S.cd[i] > 0) return 'Recharging: ' + Math.ceil(S.cd[i]) + 's';
+    return '';
+  };
+  C.canMove = (i) => S.hype >= C.moveCost(i) && !C.moveBlocked(i);
+  C.strutMult = (m) => 2 + (m || C.mods()).strutAdd;
+  C.strutDur = (m) => 15 * (m || C.mods()).strutDur;
+  C.showValue = (m) => { m = m || C.mods(); return Math.max(C.sps(m) * 15, C.clickBase(m) * 30, 25) * m.showMult; };
+  C.move = (i) => {
+    const mv = D.MOVES[i]; if (!mv || !C.canMove(i)) return null;
+    const m = C.mods(), cost = C.moveCost(i);
+    S.hype -= cost; S.stats.hypeSpent += cost;
+    S.cd[i] = (mv.cd || 0) * m.moveCd;
+    const info = {};
+    if (mv.id === 'strut') {
+      C.addBuff('strut', 'Strut', C.strutDur(m), { prod: C.strutMult(m) });
+      S.stats.struts++;
+    } else if (mv.id === 'show') {
+      info.steps = C.showValue(m); C.gain(info.steps);
+      S.enemies.filter(e => !e.boss && !e.dead).forEach(e => { e.gap = Math.max(e.gap, 0.85); });
+      S.stats.shows++;
+    } else if (mv.id === 'sprint') {
+      S.enemies.filter(e => !e.boss && !e.dead).forEach(e => defeat(e));
+      const boss = C.bossActive();
+      if (boss) { if (boss.p < 1) boss.p = 1; C.damage(boss, boss.max * 0.5, 'sprint'); }
+      S.boxes++; C.emit('boxDrop', 1, 'sprint');
+      S.stats.sprints++;
+    }
+    C.emit('move', mv, info);
+    return info;
+  };
 
   /* ---------------- golden sneaker, events, cameras ---------------- */
   C.goldInterval = () => {
@@ -641,9 +747,15 @@
   /* ---------------- cutaway (prestige) ---------------- */
   // Sole Power softcap: above 1,000 each point is worth less, so prestige loops can't run away
   C.effSp = (sp) => sp <= 1000 ? sp : 1000 * Math.pow(sp / 1000, 0.55);
-  C.spFor = (steps) => Math.floor(Math.cbrt(steps / SP_DIV));
+  // cube root of lifetime Steps, bending further past SP_SOFT so late runs grow steadily instead of exploding
+  const SP_SOFT = 100, SP_POW = 0.6;
+  const spRaw = (steps) => Math.cbrt(Math.max(0, steps) / SP_DIV);
+  const spCurve = (x) => x <= SP_SOFT ? x : SP_SOFT * Math.pow(x / SP_SOFT, SP_POW);
+  const spCurveInv = (y) => y <= SP_SOFT ? y : SP_SOFT * Math.pow(y / SP_SOFT, 1 / SP_POW);
+  C.spFor = (steps) => Math.floor(spCurve(spRaw(steps)) + 1e-9);
   C.spGain = () => Math.max(0, C.spFor(S.allSteps) - S.spTotal);
-  C.nextSpAt = () => Math.pow(S.spTotal + C.spGain() + 1, 3) * SP_DIV;
+  C.spAt = (sp) => Math.pow(spCurveInv(sp), 3) * SP_DIV;
+  C.nextSpAt = () => C.spAt(Math.max(S.spTotal, C.spFor(S.allSteps)) + 1);
   C.cutaway = (chId) => {
     const gain = C.spGain();
     if (gain < 1 && !chId) return false;
@@ -653,7 +765,7 @@
     S.enemies = []; S.heat = 0; S.bossMeter = 0; S.stun = 0; S.combo = 0; song = null; S.autoNext = false; S.songSpeed = 1;
     S.buffs = S.buffs.filter(b => b.id === 'frenzy' && false); S.golden = null; S.cams = []; S.encore = 0; S.scout = 0;
     if (m.headStart) { S.b.kid = 10; S.b.fan = 10; S.b.choir = 5; }
-    S.scene = S.cuts % D.SCENES.length;
+    S.stop = 0; S.hype = 0; S.scene = 0;
     S.challenge = chId || null; S.chStart = S.time;
     C.refresh();
     C.emit('cutaway', gain, chId);
@@ -681,6 +793,16 @@
     .forEach(([n, name], i) => ach('combo' + i, name, 'Reach a x' + n + ' combo.', () => st().bestCombo >= n));
   [[1, 'Critical Hop'], [100, 'Sweet Spots'], [1000, 'Crit Machine']]
     .forEach(([n, name], i) => ach('crit' + i, name, 'Land ' + n + ' critical clicks.', () => st().crits >= n));
+  [[1, 'First Stop'], [4, 'Road Trip'], [6, 'Summit Sneakers'], [8, 'Showbiz'], [10, 'Mall Walker'], [13, 'Deep Dive'], [15, 'Moonwalker'], [16, 'Full Circle'], [24, 'Frequent Walker'], [32, 'Two Laps, Zero Removals']]
+    .forEach(([n, name], i) => ach('stop' + i, name, n === 16 ? 'Walk the whole route and arrive back on Spooner Street.' : 'Reach stop ' + n + ' of the Long Walk (' + C.stopInfo(n).name + ').', () => S.bestStop >= n));
+  [[1, 'Strut Your Stuff'], [25, 'Swagger'], [150, 'Catwalk King']]
+    .forEach(([n, name], i) => ach('strut' + i, name, 'Strut ' + n + ' time' + (n > 1 ? 's' : '') + '.', () => (st().struts || 0) >= n));
+  [[1, 'Showstopper!'], [30, 'Standing Ovation'], [150, 'Curtain Call']]
+    .forEach(([n, name], i) => ach('showm' + i, name, 'Pull off ' + n + ' Showstopper' + (n > 1 ? 's' : '') + '.', () => (st().shows || 0) >= n));
+  [[1, 'Gone in a Flash'], [25, 'Can\'t Catch Me']]
+    .forEach(([n, name], i) => ach('sprint' + i, name, 'Sprint away ' + n + ' time' + (n > 1 ? 's' : '') + '.', () => (st().sprints || 0) >= n));
+  [[1000, 'Hype Train'], [10000, 'Pure Hype']]
+    .forEach(([n, name], i) => ach('hypes' + i, name, 'Spend ' + C.fmt(n) + ' Hype in total.', () => (st().hypeSpent || 0) >= n));
   D.BUILDINGS.forEach(b => ach('b50_' + b.id, b.name + ' x50', 'Own 50 ' + b.name + '.', () => (S.b[b.id] || 0) >= 50));
   ach('ball', 'One of Everything', 'Own at least 1 of every building.', () => D.BUILDINGS.every(b => (S.b[b.id] || 0) >= 1));
   ach('b100all', 'Real Estate Mogul', 'Own 100 of every building.', () => D.BUILDINGS.every(b => (S.b[b.id] || 0) >= 100));
@@ -772,6 +894,9 @@
     const sps = C.sps(m);
     C.gain(sps * dt);
     if (sps > S.stats.bestSps) S.stats.bestSps = sps;
+    if (m.hypeRegen) C.addHype(m.hypeRegen * dt);
+    for (let i = 0; i < S.cd.length; i++) if (S.cd[i] > 0) S.cd[i] = Math.max(0, S.cd[i] - dt);
+    checkStops(false);
     // the song, and a combo that fades if you stop singing
     tickSong(m);
     if (!song) {
@@ -835,6 +960,7 @@
     S.stun = Math.max(0, S.stun - dt);
     C.gain(C.baseSps() * dt);
     S.combo = 0;
+    checkStops(true);
   };
 
   /* ---------------- offline ---------------- */
@@ -844,8 +970,10 @@
     const rate = Math.min(1, m.offline);
     const steps = C.baseSps(m) * capped * rate;
     C.gain(steps); S.stats.play += 0;
+    const stop0 = S.stop;
+    checkStops(true);
     C.updateWheel();
-    return { sec, capped, rate, steps };
+    return { sec, capped, rate, steps, stops: S.stop - stop0 };
   };
 
   if (typeof module !== 'undefined') module.exports = C; else root.Core = C;

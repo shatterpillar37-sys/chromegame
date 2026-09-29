@@ -23,8 +23,8 @@
   try { Object.assign(U.set, JSON.parse(localStorage.getItem(SET_KEY) || '{}')); } catch (e) {}
   if (U.set.voiceMode === 'piano') U.set.voiceMode = 'vocals';
   /* ---------------- keybinds ---------------- */
-  const KEY_DEFAULTS = { lane0: 'f', lane1: 'g', lane2: 'h', lane3: 'j', start: ' ', golden: 'q', buy: 'b', wheel: 'w', mute: 'm' };
-  const KEY_LABELS = { lane0: 'Note row 1 (top)', lane1: 'Note row 2', lane2: 'Note row 3', lane3: 'Note row 4 (bottom)', start: 'Start the song', golden: 'Grab the Golden Sneaker', buy: 'Buy the cheapest building', wheel: 'Open the Wheel', mute: 'Mute' };
+  const KEY_DEFAULTS = { lane0: 'f', lane1: 'g', lane2: 'h', lane3: 'j', start: ' ', move0: '1', move1: '2', move2: '3', golden: 'q', buy: 'b', wheel: 'w', mute: 'm' };
+  const KEY_LABELS = { lane0: 'Note column 1', lane1: 'Note column 2', lane2: 'Note column 3', lane3: 'Note column 4', start: 'Start the song', move0: 'Move: Strut', move1: 'Move: Showstopper', move2: 'Move: Sprint', golden: 'Grab the Golden Sneaker', buy: 'Buy the cheapest building', wheel: 'Open the Wheel', mute: 'Mute' };
   U.set.keys = Object.assign({}, KEY_DEFAULTS, U.set.keys || {});
   delete U.set.keys.dodge;
   U.normKey = (k) => k.length === 1 ? k.toLowerCase() : k;
@@ -133,6 +133,7 @@
   };
   U.close = () => { if (capture) capture.cancel(); const ov = $('#overlay'); if (ov.hidden) return; ov.hidden = true; ov.innerHTML = ''; const f = onCloseModal; onCloseModal = null; if (f) f(); };
   U.modalOpen = () => !$('#overlay').hidden;
+  U.onClose = (fn) => { onCloseModal = fn; };
   // two-click confirmation (browser confirm() dialogs are unavailable in some viewers)
   U.armed = (btn, msg) => {
     if (btn.dataset.armed) { delete btn.dataset.armed; btn.classList.remove('armed'); btn.innerHTML = btn.dataset.label; return true; }
@@ -154,6 +155,7 @@
     $('#bankIco').innerHTML = A.icon('steps');
     $('#icoWheel').innerHTML = A.icon('wheel');
     $('#icoGear').innerHTML = A.icon('gear');
+    $('#icoHelp').innerHTML = A.icon('help');
     $('#icoHeat').innerHTML = A.icon('i:tux');
     $('#icoBoss').innerHTML = A.icon('boss');
     $('#bank').dataset.tip = 'bank';
@@ -193,10 +195,10 @@
   /* ---------------- tabs ---------------- */
   const TABS = [
     { id: 'shop', label: 'Shop', icon: 'shop' },
+    { id: 'cut', label: 'Journey', icon: 'map' },
+    { id: 'sneakers', label: 'Closet', icon: 'gold', unlocked: () => S().stats.boxesOpened > 0 || S().boxes > 0 },
     { id: 'tree', label: 'Lace Tree', icon: 'tree', unlocked: () => S().spTotal > 0 || S().cuts > 0 },
-    { id: 'sneakers', label: 'Sneakers', icon: 'gold', unlocked: () => S().stats.boxesOpened > 0 || S().boxes > 0 },
     { id: 'awards', label: 'Awards', icon: 'trophy' },
-    { id: 'cut', label: 'Cutaway', icon: 'cut', unlocked: () => S().allSteps >= C.SP_DIV * 0.05 || S().cuts > 0 },
     { id: 'stats', label: 'Stats', icon: 'stats' },
   ];
   const tabSeen = {};
@@ -504,7 +506,7 @@
 
   /* ----- awards ----- */
   const ACH_G = (id) => {
-    const p = [['steps', 'steps', '#ff9f1c'], ['sps', 'clock', '#4cc9f0'], ['clicks', 'click', '#ffd23f'], ['verse', 'lyric', '#3ddc97'], ['perfect', 'note', '#ff4d6d'], ['combo', 'combo', '#ff9f1c'], ['crit', 'crit', '#ffd23f'],
+    const p = [['stop', 'map', '#3ddc97'], ['strut', 'shades', '#ffd23f'], ['showm', 'mic', '#ff4d6d'], ['sprint', 'dash', '#4cc9f0'], ['hypes', 'hype', '#ff4d6d'], ['steps', 'steps', '#ff9f1c'], ['sps', 'clock', '#4cc9f0'], ['clicks', 'click', '#ffd23f'], ['verse', 'lyric', '#3ddc97'], ['perfect', 'note', '#ff4d6d'], ['combo', 'combo', '#ff9f1c'], ['crit', 'crit', '#ffd23f'],
       ['b50_', null, '#4cc9f0'], ['ball', 'shop', '#3ddc97'], ['b100all', 'shop', '#ffd23f'], ['enemy', 'tux', '#ff4d6d'], ['boss', 'boss', '#ff4d6d'], ['goldtux', 'gold', '#ffd23f'], ['tug', 'kick', '#b86bff'],
       ['box', 'box', '#ff9f1c'], ['rar', 'star', '#b86bff'], ['shiny', 'star', '#ffd23f'], ['coll', 'coll', '#4cc9f0'], ['star5', 'star', '#ffd23f'], ['gold', 'gold', '#ffd23f'], ['wheel', 'wheel', '#3ddc97'], ['jackpot', 'wheel', '#ff4d6d'],
       ['event', 'camera', '#4cc9f0'], ['cut', 'cut', '#ff9f1c'], ['tree', 'tree', '#3ddc97'], ['ch', 'fame', '#b86bff'], ['up', 'fame', '#4cc9f0'], ['play', 'clock', '#b9c2dd'], ['egg', 'egg', '#ff4df0']];
@@ -526,21 +528,26 @@
   let cutSig = '';
   views.cut = (force) => {
     const s = S(), v = $('#v-cut'), gain = C.spGain(), m = C.mods();
-    const sig = [gain, s.sp, s.spTotal, s.gl, JSON.stringify(s.locker), JSON.stringify(s.chDone), s.challenge, s.cuts, Math.floor(s.allSteps / C.nextSpAt() * 50)].join('|');
+    const sig = [gain, s.sp, s.spTotal, s.gl, JSON.stringify(s.locker), JSON.stringify(s.chDone), s.challenge, s.cuts, Math.floor(s.allSteps / C.nextSpAt() * 50), s.stop, s.bestStop, Math.floor(C.stopProgress() * 40)].join('|');
     if (sig === cutSig && !force) return; cutSig = sig;
-    const next = C.nextSpAt(), prevAt = Math.pow(C.spFor(s.allSteps), 3) * C.SP_DIV;
+    const next = C.nextSpAt(), prevAt = C.spAt(C.spFor(s.allSteps));
     const prog = Math.max(0, Math.min(1, (s.allSteps - prevAt) / (next - prevAt)));
-    const nextScene = D.SCENES[(s.cuts + 1) % D.SCENES.length];
     const good = gain >= Math.max(1, s.spTotal * 0.5);
-    let html = `<div class="card cut-hero">
+    let html = routeMap(s, m);
+    const cutOpen = s.allSteps >= C.SP_DIV * 0.1 || s.cuts > 0;
+    if (!cutOpen) {
+      html += `<div class="card cut-teaser"><div class="clap">${A.icon('cut')}</div><div><h4>Cutaway</h4><p>At <b>${esc(C.stopInfo(C.cutStop()).name)}</b> (stop ${C.cutStop()}) you'll be able to cut away: start the walk over from Spooner Street for <b>Sole Power</b>, which boosts everything forever and unlocks the Lace Tree.</p></div></div>`;
+      v.innerHTML = html; return;
+    }
+    html += `<div class="sec-h"><h3>Cutaway</h3><small>${s.cuts ? s.cuts + ' so far' : 'Prestige'}</small></div><div class="card cut-hero">
       <div class="clap">${A.icon('cut')}</div>
       <p>A Cutaway right now earns</p>
       <div class="big-n">+${f(gain)} <span style="font-size:.5em">Sole Power</span></div>
       <p>Next Sole Power at <b>${f(next)}</b> lifetime Steps</p>
       <div class="progress-big"><i style="width:${prog * 100}%"></i></div>
       <p>You have <b>${f(s.sp)}</b> to spend (<b>${f(s.spTotal)}</b> earned) → <b>+${f(m.spBonus * 100)}%</b> production</p>
-      <button class="btn big ${good ? 'gold' : ''}" id="doCut" ${gain < 1 ? 'disabled' : ''}>Cut to ${esc(nextScene)}</button>
-      <p class="muted" style="font-size:.85rem;margin-top:10px">${gain < 1 ? 'Earn more Steps to unlock your first Cutaway.' : good ? 'Good time to cut away!' : 'Tip: waiting until you\'d gain at least half your current Sole Power makes each run count.'}<br>Resets Steps, buildings and upgrades. Keeps Sole Power, sneakers, awards, the Lace Tree and Golden Laces.</p>
+      <button class="btn big ${good ? 'gold' : ''}" id="doCut" ${gain < 1 ? 'disabled' : ''}>Cut away!</button>
+      <p class="muted" style="font-size:.85rem;margin-top:10px">${gain < 1 ? 'Earn more Steps to unlock your first Cutaway.' : good ? 'Good time to cut away!' : 'Tip: waiting until you\'d gain at least half your current Sole Power makes each run count.'}<br>O'Toole starts the walk again from Spooner Street. Resets Steps, buildings, upgrades and stops. Keeps Sole Power, sneakers, awards, the Lace Tree and Golden Laces.</p>
     </div>`;
     if (C.challengeUnlocked()) {
       html += `<div class="sec-h"><h3>Special Episodes</h3><small>${Object.keys(s.chDone).length}/${D.CHALLENGES.length} done</small></div><div class="challenges" style="margin-bottom:12px">` +
@@ -566,20 +573,40 @@
     $$('[data-lk]', v).forEach(b => b.onclick = () => { if (C.buyLocker(b.dataset.lk)) { Snd.fx('upgrade'); views.cut(true); views.sneakers(true); } });
   };
 
+  // the route: every stop of the current lap, with where he is now
+  const SCENE_COL = ['#6fc3ff', '#f4a261', '#9aa0b8', '#1b8fbf', '#b86bff', '#dff3ff', '#ff4df0', '#ffd23f'];
+  function routeMap(s, m) {
+    const n = D.STOPS.length, lap = Math.floor(s.stop / n), first = lap * n, cur = s.stop, prog = C.stopProgress();
+    const seen = Math.max(s.bestStop, cur) + 1;
+    let rows = '';
+    for (let k = first; k < first + n; k++) {
+      const info = C.stopInfo(k), done = k < cur, here = k === cur, known = k <= seen;
+      const cls = done ? 'done' : here ? 'here' : known ? 'next' : 'unknown';
+      rows += `<li class="rt ${cls}" style="--sc:${SCENE_COL[info.scene]}"><span class="rt-dot">${done ? '✓' : here ? '' : k}</span>
+        <span class="rt-body"><b>${known ? esc(info.name) : '???'}</b><small>${known ? esc(D.SCENES[info.scene]) + (k ? ' · ' + f(C.stopAt(k)) + ' Steps' : ' · the start') : 'Keep walking to find out'}</small>
+        ${here ? `<span class="rt-prog"><i style="width:${(prog * 100).toFixed(1)}%"></i></span><em>${Math.round(prog * 100)}% of the way to ${esc(C.stopInfo(k + 1).name)}</em>` : ''}</span></li>`;
+    }
+    return `<div class="card route">
+      <div class="route-h"><div class="rh-ico">${A.icon('map')}</div><div><h4>The Long Walk${lap ? ' · Lap ' + (lap + 1) : ''}</h4>
+      <p>Stop <b>${cur}</b> · Journey bonus <b>x${f(m.journey, 2)}</b> production · Best ever: stop <b>${s.bestStop}</b></p></div></div>
+      <p class="muted" style="margin:8px 0 10px">Every time this run's Steps grow 10x, O'Toole reaches the next stop: new scenery, loot, and +${Math.round((D.STOP_BONUS + m.journeyAdd - 1) * 100)}% production for the rest of the run.</p>
+      <ol class="route-list">${rows}</ol></div>`;
+  }
+
   /* ----- stats ----- */
   views.stats = () => {
     const s = S(), st = s.stats, m = C.mods();
-    const rows = [
-      ['Steps this run', f(s.runSteps)], ['Lifetime Steps', f(s.allSteps)], ['Steps per second', f(C.sps(), 1)], ['Best Steps per second', f(st.bestSps, 1)],
-      ['Steps per note', f(C.clickBase(m) * C.comboMult(), 1)], ['Total production multiplier', 'x' + f(m.global, 2)],
-      ['Clicks', f(st.manualClicks)], ['Songs played', f(s.songs || 0)], ['Words hit on the beat', f(st.hits)], ['Perfect hits', f(st.perfectHits)], ['Misses', f(st.misses)], ['Accuracy', Math.round(C.accuracy() * 100) + '%'], ['Words sung (incl. auto)', f(st.clicks)], ['Verses sung', f(st.verses)], ['Perfect Verses', f(st.perfect)], ['Best verse', f(st.bestVerse)], ['Best combo', f(st.bestCombo)], ['Fastest song', 'x' + (st.bestSpeed || 1).toFixed(2)], ['Critical clicks', f(st.crits)],
-      ['Buildings owned', f(C.totalBuildings())], ['Upgrades bought (all time)', f(st.upgrades)],
-      ['Tuxedo men escaped', f(st.enemies)], ['Bosses made dizzy', f(st.bosses)], ['Times tugged', f(st.tugs)], ['Stride', f(m.kickDmg, 1)], ['Luck', '+' + Math.round(m.luck * 100) + '%'], ['Crit chance', (m.crit * (1 + m.luck * 0.5) * 100).toFixed(1) + '%'],
-      ['Golden Sneakers clicked', f(st.golden)], ['Shoeboxes opened', f(st.boxesOpened)], ['Shiny sneakers found', f(st.shinies)], ['Wheel spins', f(st.wheelSpins)], ['Random events', f(st.events)],
-      ['Cutaways', f(s.cuts)], ['Sole Power earned', f(s.spTotal)], ['Golden Laces', f(s.gl)], ['Awards', Object.keys(s.ach).length + '/' + C.ACH.length],
-      ['Time played', C.time(st.play)], ['Started', new Date(s.created).toLocaleDateString()],
+    const groups = [
+      ['map', 'The Walk', [['Current stop', s.stop + ' · ' + C.stopInfo(s.stop).name], ['Furthest stop ever', f(s.bestStop)], ['Stops reached (all time)', f(st.stops || 0)], ['Laps of the route', f(st.laps || 0)], ['Journey bonus', 'x' + f(m.journey, 2)]]],
+      ['steps', 'Steps', [['This run', f(s.runSteps)], ['Lifetime', f(s.allSteps)], ['Per second', f(C.sps(), 1)], ['Best per second', f(st.bestSps, 1)], ['Per note', f(C.clickBase(m) * C.comboMult(), 1)], ['Production multiplier', 'x' + f(m.global, 2)], ['Buildings owned', f(C.totalBuildings())], ['Upgrades bought (all time)', f(st.upgrades)]]],
+      ['note', 'Singing', [['Songs played', f(s.songs || 0)], ['Words hit on the beat', f(st.hits)], ['Perfect hits', f(st.perfectHits)], ['Misses', f(st.misses)], ['Accuracy', Math.round(C.accuracy() * 100) + '%'], ['Words sung (incl. auto)', f(st.clicks)], ['Verses sung', f(st.verses)], ['Perfect Verses', f(st.perfect)], ['Best verse', f(st.bestVerse)], ['Best combo', f(st.bestCombo)], ['Fastest song', 'x' + (st.bestSpeed || 1).toFixed(2)], ['Critical notes', f(st.crits)], ['Crit chance', (m.crit * (1 + m.luck * 0.5) * 100).toFixed(1) + '%']]],
+      ['hype', 'Hype', [['Hype spent', f(st.hypeSpent || 0)], ['Struts', f(st.struts || 0)], ['Showstoppers', f(st.shows || 0)], ['Sprints', f(st.sprints || 0)]]],
+      ['tux', 'The Chase', [['Tuxedo men escaped', f(st.enemies)], ['Bosses made dizzy', f(st.bosses)], ['Times tugged', f(st.tugs)], ['Stride', f(m.kickDmg, 1)]]],
+      ['box', 'Loot', [['Golden Sneakers grabbed', f(st.golden)], ['Shoeboxes opened', f(st.boxesOpened)], ['Shiny sneakers found', f(st.shinies)], ['Wheel spins', f(st.wheelSpins)], ['Random events', f(st.events)], ['Luck', '+' + Math.round(m.luck * 100) + '%']]],
+      ['cut', 'Cutaways', [['Cutaways', f(s.cuts)], ['Sole Power earned', f(s.spTotal)], ['Golden Laces', f(s.gl)], ['Awards', Object.keys(s.ach).length + '/' + C.ACH.length]]],
+      ['clock', 'Time', [['Time played', C.time(st.play)], ['Started', new Date(s.created).toLocaleDateString()]]],
     ];
-    $('#v-stats').innerHTML = `<div class="card"><h4>Stats</h4><dl class="stat-list">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div>`;
+    $('#v-stats').innerHTML = `<div class="stat-groups">${groups.map(([ic, t, rows]) => `<div class="card stat-card"><div class="sc-h"><span class="sc-ico">${A.icon(ic)}</span><h4>${t}</h4></div><dl class="stat-list">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div>`).join('')}</div>`;
   };
 
   /* ---------------- tooltips content ---------------- */
@@ -594,20 +621,27 @@
   U.tips.boxshop = () => `<h5>Mystery Shoebox</h5><p>Contains one random sneaker. Rarer sneakers give bigger bonuses when worn. Price grows as you buy more.</p>`;
   U.tips.tree = (id) => { const n = C.TREE[id], s = S(), lv = s.tree[id] || 0; return `<h5 style="color:${D.BRANCHES[n.br].color}">${esc(n.name)}</h5><p>${esc(n.desc)}</p>${lv >= n.max ? '<p><b>Owned</b></p>' : C.treeAvail(n) ? costLine(C.treeCost(n), s.sp, 'sp') : '<p>Buy the node before it first.</p>'}`; };
   U.tips.snk = (id) => { const sn = SNK[id], o = S().sneakers[id]; if (!o) return `<h5>???</h5><p class="rar" style="--rc:${RC(sn.r)}">${D.RARITY[sn.r].name}</p><p>Not found yet. Open Shoeboxes!</p>`; return `<h5>${esc(sn.name)}</h5><p class="rar" style="--rc:${RC(sn.r)}">${o.shiny ? 'Shiny ' : ''}${D.RARITY[sn.r].name} · ${o.star}★</p><p><b>${esc(U.fxText(sn, C.sneakerValue(id)))}</b> while worn</p><p class="q">${esc(sn.desc)}</p>`; };
-  U.tips.slotlock = (i) => `<h5>Locked slot</h5><p>Buy the ${+i === 3 ? 'Fourth' : 'Fifth'} Sneaker Slot in the Golden Lace Locker (Cutaway tab).</p>`;
+  U.tips.slotlock = (i) => `<h5>Locked slot</h5><p>Buy the ${+i === 3 ? 'Fourth' : 'Fifth'} Sneaker Slot in the Golden Lace Locker (Journey tab).</p>`;
   U.tips.ach = (id) => { const a = C.AMAP[id], s = S(); return `<h5>${esc(a.name)}</h5><p>${esc(a.desc)}</p><p>${s.ach[id] ? '<b style="color:var(--mint)">Unlocked</b> ' + new Date(s.ach[id]).toLocaleDateString() : 'Locked'}</p>`; };
   U.tips.achsecret = () => `<h5>Secret award</h5><p>Who knows? Poke around, and try typing a word or two.</p>`;
   U.tips.chip = (id) => ({
-    box: `<h5>Shoeboxes</h5><p>Open them in the Sneakers tab. Tuxedo men, Golden Sneakers, the Wheel and events drop them.</p>`,
+    box: `<h5>Shoeboxes</h5><p>Open them in the Closet tab. Stops on the route, tuxedo men, Golden Sneakers, the Wheel and events drop them.</p>`,
     shard: `<h5>Lace Shards</h5><p>From duplicate sneakers. Spend them to add stars to a sneaker.</p>`,
     sp: `<h5>Sole Power</h5><p>Earned by Cutaways. Every point you've earned gives +${Math.round(C.mods().spEff * 100)}% production (softcapped past 1,000), and you can spend it on the Lace Tree.</p>`,
-    gl: `<h5>Golden Laces</h5><p>Dropped by bosses. Spend them in the Golden Lace Locker (Cutaway tab).</p>`,
+    gl: `<h5>Golden Laces</h5><p>Dropped by bosses and every 4th stop. Spend them in the Golden Lace Locker (Journey tab).</p>`,
   })[id];
   U.tips.wheel = () => { const w = S().wheel; return `<h5>Wheel of Laces</h5><p>${w.charges ? `<b>${w.charges}</b> free spin${w.charges > 1 ? 's' : ''} ready!` : 'Next free spin in <b>' + C.time((w.next - Date.now()) / 1000) + '</b>'}</p><p>Recharges every ${Math.round(C.wheelPeriod() / 60000)} minutes, even while you're away.</p>`; };
   U.tips.lane = () => `<h5>The song</h5><p>Click O'Toole (or press ${U.keyName('start')}) to play the piano. Each word falls down one of four columns: press that column's key (${[0, 1, 2, 3].map(U.laneKey).join(' ')}) as it lands on the keycap and he sings it. Keep singing and the next song starts by itself.</p><p>Hit all eleven with no stray presses for a Perfect Verse, and the next song plays 10% faster. Tight hits are Perfect (x1.5). Mashing backfires: a wrong or extra press is a miss and can ruin the next note.</p><p>Accuracy: <b>${Math.round(C.accuracy() * 100)}%</b></p>`;
+  U.tips.journey = () => { const s = S(), here = C.stopInfo(s.stop), next = C.stopInfo(s.stop + 1), m = C.mods(); return `<h5>The Long Walk</h5><p>O'Toole walks up the street as your Steps pile up. Every time this run's Steps grow 10x he reaches a new stop: new scenery, a reward, and <b>+${Math.round((D.STOP_BONUS + m.journeyAdd - 1) * 100)}% production</b> for the rest of the run (multiplies).</p><p>Now: <b>${esc(here.name)}</b> (stop ${s.stop}) · Journey bonus <b>x${f(m.journey, 2)}</b></p><p>Next: <b>${esc(next.name)}</b> at ${f(C.stopAt(s.stop + 1))} Steps this run (${f(Math.max(0, C.stopAt(s.stop + 1) - s.runSteps))} to go)</p><p class="muted">Best ever: stop ${s.bestStop}. A Cutaway sends him back to Spooner Street.</p>`; };
+  U.tips.hype = () => `<h5>Hype</h5><p>Singing on the beat builds Hype: Perfect notes the most, crits extra, and a Perfect Verse adds a big chunk. Leaving chasers behind, dizzying bosses and reaching stops add more.</p><p>Spend it on moves (keys ${[0, 1, 2].map(i => U.keyName('move' + i)).join(' ')}): they power up your whole operation.</p>${C.mods().hypeRegen ? `<p>Passive Hype: <b>+${C.mods().hypeRegen.toFixed(2)}/s</b></p>` : ''}`;
+  U.tips.move = (i) => {
+    const mv = D.MOVES[+i], m = C.mods();
+    const desc = mv.id === 'strut' ? `Production <b>x${C.strutMult(m)}</b> for <b>${Math.round(C.strutDur(m))} seconds</b>. He struts faster, too.` : mv.id === 'show' ? `Instantly earn <b>${f(C.showValue(m))}</b> Steps (about ${Math.round(C.showValue(m) / Math.max(1e-9, C.sps(m)))}s of production) and knock every chaser far back. Recharges in ${Math.round(mv.cd * m.moveCd)}s.` : `Every chaser gives up on the spot (with loot), a boss gets half dizzy at once, and you grab a Shoebox. Recharges in ${Math.round(mv.cd * m.moveCd)}s.`;
+    return `<h5 style="color:${mv.color}">${esc(mv.name)} <small class="muted">· key ${U.keyName('move' + i)}</small></h5><p>${desc}</p><p>Costs <b>${C.moveCost(+i)}</b> Hype · you have <b>${Math.floor(S().hype)}</b>${C.moveBlocked(+i) ? ' · <b>' + C.moveBlocked(+i) + '</b>' : ''}</p>`;
+  };
   U.tips.heat = () => `<h5>Heat</h5><p>The more you hop, the more attention you get. When Heat fills up, a tuxedo man starts chasing you from behind. Sing notes to run up the street; get far enough ahead and he gives up. Stop singing and he catches up.</p><p>Heat per second: <b>${C.heatRate().toFixed(2)}</b></p>`;
   U.tips.bossmeter = () => `<h5>Boss meter</h5><p>Every tuxedo man who gives up fills a pip. When it's full, a boss blocks the street. Sing notes to run circles around him until he's too dizzy to stand, before his timer runs out, for Golden Laces!</p>`;
-  U.tips.tablock = (id) => ({ tree: `<h5>Lace Tree</h5><p>Unlocks after your first Cutaway.</p>`, sneakers: `<h5>Sneakers</h5><p>Unlocks when you get your first Shoebox. Tuxedo men sometimes drop them.</p>`, cut: `<h5>Cutaway</h5><p>Unlocks as you approach ${f(C.SP_DIV)} lifetime Steps.</p>` })[id];
+  U.tips.tablock = (id) => ({ tree: `<h5>Lace Tree</h5><p>Unlocks after your first Cutaway.</p>`, sneakers: `<h5>Closet</h5><p>Unlocks with your first Shoebox. You get one at stop 2 of the Long Walk.</p>` })[id];
 
   /* ---------------- HUD on the stage ---------------- */
   const LANE_COL = ['#ff4d6d', '#ffd23f', '#3ddc97', '#4cc9f0'];
@@ -621,8 +655,15 @@
     $('#hud .meter.heat').dataset.tip = 'heat';
     $('#hud .meter.bossm').dataset.tip = 'bossmeter';
     $$('#lyrics .kcap').forEach(b => b.addEventListener('pointerdown', (e) => { e.preventDefault(); root.Game && root.Game.lane(+b.dataset.lane); }));
+    // Hype moves
+    $('#hyMoves').innerHTML = D.MOVES.map((mv, i) => `<button class="move" data-m="${i}" data-tip="move:${i}" style="--mc:${mv.color}"><span class="mv-ico">${A.icon(mv.icon)}</span><span class="mv-txt"><b>${esc(mv.name)}</b><small>${mv.cost} hype</small></span><span class="mv-k"></span><i class="mv-t"></i></button>`).join('');
+    $$('#hyMoves .move').forEach(b => b.addEventListener('pointerdown', (e) => { e.preventDefault(); root.Game && root.Game.move(+b.dataset.m); }));
+    $('#jrMe').innerHTML = A.logoSneaker();
+    // hype meter tick marks at each move's cost
+    $('.hy-bar').insertAdjacentHTML('beforeend', D.MOVES.slice(0, -1).map(mv => `<b class="mk" style="left:${mv.cost / D.HYPE_MAX * 100}%"></b>`).join(''));
   }
-  U.refreshKeys = () => { $$('#lyrics .kcap').forEach((b, i) => { b.textContent = U.laneKey(i); }); };
+  U.moveFlash = (i, ok) => { const b = $$('#hyMoves .move')[i]; if (!b) return; const c = ok ? 'fire' : 'nope'; b.classList.remove('fire', 'nope'); void b.offsetWidth; b.classList.add(c); };
+  U.refreshKeys = () => { $$('#lyrics .kcap').forEach((b, i) => { b.textContent = U.laneKey(i); }); $$('#hyMoves .mv-k').forEach((k, i) => { k.textContent = U.keyName('move' + i); }); };
   // the rhythm lane: word notes fall down their key's column and reach the keycap on their beat.
   // Notes start above the lane's top edge (each song has a lead-in), so they fly in rather than appear.
   const TRAVEL = 1.25;   // seconds a note spends crossing the lane
@@ -674,6 +715,20 @@
     const b = $('#banner'); b.querySelector('.bn-tag').textContent = tag; b.querySelector('.bn-txt').innerHTML = `<b>${esc(title)}</b>${esc(text)}`;
     b.classList.add('on'); clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('on'), ms || 4200);
   };
+  let arriveT = null;
+  U.arrive = (info, r) => {
+    const el = $('#arrive');
+    el.querySelector('.ar-tag').textContent = 'STOP ' + info.k + (info.lap ? ' · LAP ' + (info.lap + 1) : '') + ' · NOW ARRIVING';
+    el.querySelector('.ar-name').textContent = info.name;
+    el.querySelector('.ar-blurb').textContent = info.blurb;
+    const loot = [`<span><i>${A.icon('steps')}</i>+${f(r.steps)}</span>`];
+    if (r.boxes) loot.push(`<span><i>${A.icon('box')}</i>+${r.boxes}</span>`);
+    if (r.gl) loot.push(`<span><i>${A.icon('gl')}</i>+${r.gl}</span>`);
+    loot.push(`<span class="jb">Production x${f(C.mods().journey, 2)}</span>`);
+    el.querySelector('.ar-loot').innerHTML = loot.join('');
+    el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    clearTimeout(arriveT); arriveT = setTimeout(() => el.classList.remove('on'), 5200);
+  };
   let buffSig = '';
   function updateHud() {
     const s = S(), m = C.mods();
@@ -685,7 +740,7 @@
     const bs = s.buffs.map(b => b.id).join(',') + (s.encore ? 'enc' : '') + (s.scout ? 'sc' : '') + (s.shinyOToole > 0 ? 'sh' : '');
     if (bs !== buffSig) {
       buffSig = bs;
-      const icon = { frenzy: 'gold', clickf: 'click', dazzle: 'star', repel: 'tux', viral: 'viral', conv: 'tux', sale: 'shop', rain: 'heat' };
+      const icon = { frenzy: 'gold', clickf: 'click', dazzle: 'star', repel: 'tux', viral: 'viral', conv: 'tux', sale: 'shop', rain: 'heat', strut: 'i:prod' };
       let html = s.buffs.map(b => `<div class="buff" data-b="${b.id}"><span class="bi"><span>${A.icon(icon[b.id] || 'star')}</span></span>${esc(b.name)} <small></small></div>`).join('');
       if (s.encore) html += `<div class="buff"><span class="bi"><span>${A.icon('note')}</span></span>Encore x10 <small>${s.encore} verses</small></div>`;
       if (s.scout) html += `<div class="buff"><span class="bi"><span>${A.icon('fame')}</span></span>Talent Scout <small>next verse x10</small></div>`;
@@ -714,7 +769,26 @@
       bb.classList.toggle('urgent', boss.p >= 1 && boss.timer < 8);
     }
     // scene + challenge
-    $('#sceneTag').textContent = D.SCENES[s.scene] + (s.cuts ? ' · Cutaway #' + s.cuts : '');
+    // journey strip
+    const here = C.stopInfo(s.stop), next = C.stopInfo(s.stop + 1), jp = C.stopProgress();
+    const jsig = s.stop + '|' + s.cuts;
+    const jr = $('#journey');
+    if (jr.dataset.sig !== jsig) { jr.dataset.sig = jsig; $('#jrStop').textContent = s.stop ? 'STOP ' + s.stop : 'START'; $('#jrHere').textContent = here.name; $('#jrNext').textContent = next.name; }
+    $('#jrFill').style.width = (jp * 100).toFixed(1) + '%';
+    $('#jrMe').style.left = (jp * 100).toFixed(1) + '%';
+    jr.classList.toggle('hide', !!boss);
+    // hype and moves
+    const hp = s.hype / D.HYPE_MAX;
+    $('#hyFill').style.width = (hp * 100).toFixed(1) + '%';
+    $('#hyN').textContent = Math.floor(s.hype);
+    $('#hype').classList.toggle('full', s.hype >= D.HYPE_MAX);
+    $$('#hyMoves .move').forEach((b, i) => {
+      const ready = C.canMove(i), blocked = C.moveBlocked(i);
+      b.classList.toggle('ready', ready); b.classList.toggle('active', !!blocked && !(s.cd[i] > 0));
+      const st = D.MOVES[i].id === 'strut' ? C.buffActive('strut') : null, cd = s.cd[i] || 0;
+      b.classList.toggle('cooling', cd > 0);
+      b.querySelector('.mv-t').style.width = st ? (st.t / st.dur * 100) + '%' : cd > 0 ? (100 - cd / (D.MOVES[i].cd * C.mods().moveCd) * 100) + '%' : (Math.min(1, s.hype / C.moveCost(i)) * 100) + '%';
+    });
     const ct = $('#chTag');
     if (s.challenge) {
       const ch = C.CH[s.challenge]; ct.hidden = false;
@@ -862,6 +936,25 @@
     $('#sIntro', el).onclick = () => { U.close(); root.Intro.play(true); };
   };
 
+  /* ---------------- how to play ---------------- */
+  U.guide = (first) => {
+    const K = (a) => `<kbd>${esc(U.keyName(a))}</kbd>`;
+    const lanes = [0, 1, 2, 3].map(i => K('lane' + i)).join(' ');
+    const sec = (icon, title, body) => `<div class="gd"><div class="gd-ico">${A.icon(icon)}</div><div><h4>${title}</h4>${body}</div></div>`;
+    const el = U.modal(`<div class="modal guide"><button class="x">✕</button>
+      <h2>${first ? 'Welcome to the Long Walk' : 'How to play'}</h2>
+      <p class="muted">Sneakers O'Toole is walking up the street and he is <b>not</b> taking his sneakers off. Help him get as far as he can.</p>
+      ${sec('steps', 'Steps', `<p>Steps are your money. Buy <b>buildings</b> in the Shop (fans, choirs, factories...) to earn Steps every second, and <b>upgrades</b> to multiply them. The more you make, the faster he walks.</p>`)}
+      ${sec('map', 'The Long Walk', `<p>Every time this run's Steps grow <b>10x</b>, he reaches the next <b>stop</b> on the route: new scenery, loot, and <b>+10% production</b> for the rest of the run. Watch the route bar at the top of the street.</p>`)}
+      ${sec('note', 'Sing along', `<p>Click O'Toole (or ${K('start')}) to start his song. Words fall down four columns: press ${lanes} as each lands on its key. Hits earn Steps and build <b>Hype</b>. Mashing keys counts as misses, so stay on the beat. Nail all eleven words and the next song goes 10% faster.</p>`)}
+      ${sec('hype', 'Hype moves', `<p>Spend Hype on moves (bottom right): <b style="color:#ffd23f">Strut</b> ${K('move0')} doubles production for a while, <b style="color:#ff4d6d">Showstopper</b> ${K('move1')} pays out a burst of Steps, and <b style="color:#4cc9f0">Sprint</b> ${K('move2')} leaves every chaser behind and grabs a Shoebox.</p>`)}
+      ${sec('tux', 'Tuxedo men', `<p>They sneak up from the left to pull his sneakers off. Sing notes to walk away until they give up (they drop loot). Bosses block the street: sing to run circles around them until they fall over dizzy.</p>`)}
+      ${sec('box', 'Sneakers & more', `<p>Open Shoeboxes in the <b>Closet</b> and wear up to 3 sneakers for bonuses. Grab <b>Golden Sneakers</b> when they fly by (${K('golden')}), and spin the <b>Wheel</b> for free prizes.</p>`)}
+      ${sec('cut', 'Cutaway', `<p>Far down the road (stop ${C.cutStop()}, ${esc(C.stopInfo(C.cutStop()).name)}), <b>cut away</b> in the Journey tab: the walk restarts, but you earn <b>Sole Power</b> for permanent boosts and the Lace Tree. Each run goes further than the last.</p>`)}
+      <div style="text-align:center;margin-top:12px"><button class="btn big" id="gdOk">${first ? 'Let\'s walk!' : 'Got it'}</button></div></div>`);
+    $('#gdOk', el).onclick = () => U.close();
+  };
+
   /* ---------------- offline ---------------- */
   U.welcome = (info) => {
     const el = U.modal(`<div class="modal" style="text-align:center"><button class="x">✕</button>
@@ -918,6 +1011,7 @@
   U.init = () => {
     buildHeader(); buildTabs(); buildHud(); bindTips();
     $('#btnSettings').onclick = () => { Snd.fx('ui'); U.settings(); };
+    $('#btnHelp').onclick = () => { Snd.fx('ui'); U.guide(); };
     $('#btnWheel').onclick = () => { Snd.fx('ui'); U.wheel(); };
     $('#btnMute').onclick = () => { U.set.muted = !U.set.muted; U.applySet(); };
     U.applySet();

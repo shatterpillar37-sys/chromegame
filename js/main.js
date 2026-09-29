@@ -7,7 +7,7 @@
   const S = () => C.get();
   const SAVE_KEY = 'sneakersOToole.v2';
   const G = {};
-  let running = false, started = false, offlineInfo = null;
+  let running = false, started = false, offlineInfo = null, fresh = false;
 
   /* ---------------- saving ---------------- */
   G.save = () => { try { localStorage.setItem(SAVE_KEY, C.serialize()); } catch (e) {} };
@@ -152,7 +152,7 @@
     St.float(eff.name + '!', p.x, p.y, { size: 30, color: '#ffd23f', vy: 60, life: 1.6, force: true });
   });
   C.on('boxDrop', (n, src) => {
-    if (S().stats.boxesOpened === 0 && S().boxes === n) setTimeout(() => U.banner('NEW', 'You found a Shoebox!', ' Open it in the Sneakers tab to find sneakers with bonuses.', 6000), 400);
+    if (S().stats.boxesOpened === 0 && S().boxes === n) setTimeout(() => U.banner('NEW', 'You found a Shoebox!', ' Open it in the Closet tab to find sneakers with bonuses.', 6000), 400);
   });
   C.on('ach', (a) => {
     Snd.fx('ach');
@@ -167,8 +167,32 @@
   C.on('challengeEnd', (id, ok) => {
     const ch = C.CH[id];
     if (ok) { Snd.fx('jackpot'); U.confetti(150); U.banner('COMPLETE', ch.name + ' done!', ' Reward: ' + ch.reward, 7000); }
-    else U.banner('EPISODE', ch.name + ' ended.', ' No reward this time. Try again from the Cutaway tab.', 5000);
+    else U.banner('EPISODE', ch.name + ' ended.', ' No reward this time. Try again from the Journey tab.', 5000);
     U.render(true);
+  });
+  // the Long Walk: arriving at a new stop on the route
+  C.on('arrive', (info, r, o) => {
+    St.setScene(info.scene, o.quiet ? null : { name: info.name, sub: 'STOP ' + info.k + (info.lap ? ' · LAP ' + (info.lap + 1) : '') });
+    if (o.quiet) { U.toast({ icon: A.icon('i:prod'), title: 'Reached ' + info.name, sub: 'Stop ' + info.k + ' · production x' + f(C.mods().journey, 2) }); return; }
+    Snd.fx('arrive');
+    U.arrive(info, r);
+    const p = otPos();
+    St.burst('confetti', p.x, p.top, 40, { speed: 340, gravity: 600, size: 9, colors: ['#ffd23f', '#3ddc97', '#4cc9f0', '#ff4d6d'], life: 1.3, angle: -Math.PI / 2, spread: 2 });
+    if (info.k === 1 && !S().cuts) setTimeout(() => U.banner('THE LONG WALK', 'Every stop makes you stronger.', ' Each time this run\'s Steps grow 10x, O\'Toole reaches a new stop and all production goes up for the rest of the run.', 8000), 5400);
+    U.bumpBank();
+  });
+  C.on('moveReady', (i, mv) => {
+    Snd.fx('hypeReady', i); U.moveFlash(i, true);
+    if (!S().stats.hypeSpent && i === 0) U.banner('HYPE', 'Strut is ready!', ' Press ' + U.keyName('move0') + ' (or click Strut, bottom right) to double production for a while. Singing builds Hype.', 8000);
+  });
+  C.on('move', (mv, info) => {
+    Snd.fx('move', mv.id);
+    const p = otPos(), i = D.MOVES.indexOf(mv);
+    U.moveFlash(i, true);
+    St.move(mv.id);
+    if (mv.id === 'strut') St.float('STRUT! x' + C.strutMult(), p.x, p.top - 30, { size: 34, color: '#ffd23f', vy: 60, life: 1.5, wobble: true, force: true });
+    if (mv.id === 'show') { St.float('SHOWSTOPPER!', p.x, p.top - 40, { size: 38, color: '#ff4d6d', vy: 50, life: 1.6, wobble: true, force: true }); St.float('+' + f(info.steps), p.x, p.top + 10, { size: 30, color: '#3ddc97', vy: 70, life: 1.5, force: true }); U.confetti(60); St.shake(8); U.bumpBank(); }
+    if (mv.id === 'sprint') { St.float('SPRINT!', p.x, p.top - 30, { size: 36, color: '#4cc9f0', vy: 60, life: 1.5, force: true }); St.shake(6); }
   });
   C.on('buffEnd', (b) => { if (b.id === 'frenzy' || b.id === 'dazzle') U.toast({ title: b.name + ' ended' }); });
   C.on('comboEnd', (n) => { const p = otPos(); St.float('combo x' + n + ' ended', p.x, p.top, { size: 16, color: '#b9addf', vy: 40 }); });
@@ -187,6 +211,11 @@
     if (clickTimes.length >= 100) unlockEgg('carpal', ['Carpal Tunnel', 'A hundred clicks in ten seconds. Please stretch.']);
   }
   // a lane key (or its on-screen keycap) judges the nearest note; between songs it only flashes the keycap
+  G.move = (i) => {
+    if (!running) return;
+    Snd.init(); St.idleReset();
+    if (!C.move(i)) { U.moveFlash(i, false); Snd.fx('cant'); }
+  };
   G.lane = (i) => {
     if (!running) return;
     Snd.init(); St.idleReset(); U.pressLane(i);
@@ -265,11 +294,11 @@
       const k = U.normKey(e.key), K = U.set.keys;
       for (let i = 0; i < 4; i++) if (k === K['lane' + i]) { e.preventDefault(); if (!e.repeat) G.lane(i); return; }
       if (k === K.start) { e.preventDefault(); if (!e.repeat) sing(e); return; }
+      for (let i = 0; i < 3; i++) if (k === K['move' + i]) { e.preventDefault(); if (!e.repeat) G.move(i); return; }
       if (k === K.golden) C.clickGolden();
       if (k === K.mute) { U.set.muted = !U.set.muted; U.applySet(); }
       if (k === K.buy) { const b = D.BUILDINGS.filter((x, i) => C.bldUnlocked(i)).sort((a, c) => C.cost(a, 1) - C.cost(c, 1))[0]; if (b && C.buy(b.id, 1)) U.render(true); }
       if (k === K.wheel) U.wheel();
-      if (/^[1-6]$/.test(k)) U.tab(['shop', 'tree', 'sneakers', 'awards', 'cut', 'stats'][+k - 1]);
     });
     root.addEventListener('egg', (e) => { if (e.detail === 'silence') unlockEgg('silence', ['Sound of Silence', 'Every slider at zero. Peaceful.']); });
     root.addEventListener('otoole-wake', () => { unlockEgg('nap', ['Power Nap', 'O\'Toole dozed off and you woke him up.']); });
@@ -310,12 +339,13 @@
     Snd.init().then(() => Snd.startMusic());
     St.walkIn();
     if (offlineInfo) setTimeout(() => U.welcome(offlineInfo), 900);
-    else if (S().stats.manualClicks === 0) setTimeout(() => U.banner('HOW TO PLAY', 'Click O\'Toole to start his song!', ' Then press ' + [0, 1, 2, 3].map(U.laneKey).join(' ') + ' as each falling word lands on its key. Keep hitting notes and the songs keep coming.', 8000), 1200);
+    else if (fresh) setTimeout(() => { U.guide(true); U.onClose(() => U.banner('START', 'Click O\'Toole to start his song!', ' Then press ' + [0, 1, 2, 3].map(U.laneKey).join(' ') + ' as each falling word lands on its key. Hits earn Steps: spend them in the Shop.', 9000)); }, 900);
     if (new Date().getHours() === 3) unlockEgg('night', ['Night Owl', 'Hopping at 3 AM. Respect.']);
   }
   function boot(hotData) {
     C.clock = Snd.clock;
     const had = G.load(hotData && hotData.save);
+    fresh = !had;
     St.init(); St.initSprites(); U.init(); In.init(startGame);
     St.setScene(S().scene);
     if (had) {

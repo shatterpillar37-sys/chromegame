@@ -408,15 +408,52 @@
       frame(dt, speed) { if (!L) build(); cam += (speed || 0) * dt; time += dt; drawLayers(ctx, L, cam, time); },
     };
   };
-  St.setScene = (i) => { sceneIdx = i % SCENES.length; layers = null; };
-  // the camera follows O'Toole up the street
+  // animate = walk into the new scene: it slides in from the right behind a road sign
+  let trans = null;
+  St.setScene = (i, sign) => {
+    i = ((i % SCENES.length) + SCENES.length) % SCENES.length;
+    if (sign && layers && !St.q.reduce) trans = { from: layers, t: 0, dur: 2.2, sign, same: i === sceneIdx };
+    sceneIdx = i; layers = null;
+  };
+  // the camera follows O'Toole up the street: a steady walk from production, plus a stride for every note
   St.camX = 0; let camTarget = 0;
-  St.advance = (px) => { camTarget += px === undefined ? Math.max(40, W * 0.07) : px; };
+  St.advance = (px) => { camTarget += px === undefined ? Math.max(30, W * 0.05) : px; };
   St.walking = () => camTarget - St.camX > 2;
+  St.walkSpeed = () => C.pace() * Math.max(90, W * 0.16);
   function drawScene(dt) {
     if (!layers) layers = buildLayers(sceneIdx);
+    camTarget += St.walkSpeed() * dt;
     St.camX += (camTarget - St.camX) * Math.min(1, dt * 7);
-    drawLayers(bx, layers, St.camX, St.q.bgAnim && !St.q.reduce ? t : 0);
+    const time = St.q.bgAnim && !St.q.reduce ? t : 0;
+    drawLayers(bx, layers, St.camX, time);
+    if (trans) {
+      if (trans.from.w !== W || trans.from.h !== H) { trans = null; return; }
+      trans.t += dt;
+      const p = Math.min(1, trans.t / trans.dur), e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      const edge = W * (1.08 - 1.16 * e);   // the old scene stays to the left of the sign
+      if (!trans.same && edge > 0) {
+        bx.save(); bx.setTransform(1, 0, 0, 1, 0, 0); bx.beginPath(); bx.rect(0, 0, Math.max(0, edge) * DPR, H * DPR); bx.clip();
+        drawLayers(bx, trans.from, St.camX, time); bx.restore();
+      }
+      bx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      roadSign(bx, trans.same ? W * (1.1 - 1.3 * e) : edge, trans.sign);
+      if (p >= 1) trans = null;
+    }
+  }
+  // a big green highway sign on a post, planted at the border between scenes
+  function roadSign(c, x, txt) {
+    const s = Math.max(0.6, Math.min(1.2, H / 520)), top = groundY - Math.min(H * 0.5, St.charH() * 0.95);
+    c.save();
+    c.fillStyle = '#8a93a6'; c.fillRect(x - 5 * s, top, 10 * s, groundY - top); c.strokeStyle = INK; c.lineWidth = 3; c.strokeRect(x - 5 * s, top, 10 * s, groundY - top);
+    c.font = `${Math.round(22 * s)}px 'Lilita One', 'Arial Black', sans-serif`;
+    const tw = c.measureText(txt.name).width, bw = Math.max(tw + 40 * s, 170 * s), bh = 74 * s, by = top - bh * 0.7;
+    rrect(c, x - bw / 2, by, bw, bh, 10 * s); c.fillStyle = '#1f7a4a'; c.fill(); outline(c, 4);
+    rrect(c, x - bw / 2 + 5 * s, by + 5 * s, bw - 10 * s, bh - 10 * s, 7 * s); c.strokeStyle = '#fff'; c.lineWidth = 2.5; c.stroke();
+    c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(txt.name, x, by + bh * 0.62);
+    c.font = `${Math.round(12 * s)}px 'Lilita One', 'Arial Black', sans-serif`;
+    c.fillStyle = '#ffd23f'; c.fillText(txt.sub, x, by + bh * 0.28);
+    c.restore();
   }
 
   /* ---------------- the crowd: your buildings, hopping along ---------------- */
@@ -584,6 +621,28 @@
   St.walkIn = () => {
     St.setPose('walk', 1400);
     otRig.animate([{ transform: `translateX(${-W * 0.6}px)` }, { transform: 'translateX(0)' }], { duration: St.q.reduce ? 1 : 1400, easing: 'cubic-bezier(.2,.7,.3,1)' });
+  };
+  // Hype moves
+  St.move = (id) => {
+    idleT = 0; if (asleep) St.wake(true);
+    const c = St.otCenter();
+    if (id === 'strut') {
+      // a proud little spin, then sparkles
+      St.setPose('walk', 700);
+      otRig.animate([{ transform: 'translateY(0) rotate(0)' }, { transform: 'translateY(-26px) rotate(-8deg) scale(1.06)', offset: 0.35 }, { transform: 'translateY(0) rotate(4deg) scale(.97,1.03)', offset: 0.7 }, { transform: 'translateY(0) rotate(0)' }], { duration: St.q.reduce ? 1 : 520, easing: 'ease-out' });
+      St.burst('spark', c.x, c.feet - 10, 18, { speed: 260, size: 9, colors: ['#ffd23f', '#fff1a8', '#ff9f1c'], gravity: 200, angle: -Math.PI / 2, spread: 2.4 });
+    } else if (id === 'show') {
+      St.setPose('no', 900);
+      otRig.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12, .9)', offset: 0.2 }, { transform: 'translateY(-40px) scale(.95, 1.08)', offset: 0.5 }, { transform: 'scale(1)' }], { duration: St.q.reduce ? 1 : 650, easing: 'ease-out' });
+      St.burst('ring', c.x, c.y, 1, { speed: 0, size: Math.max(W, H) * 0.7, color: '#ff4d6d', gravity: 0, life: 0.6 });
+      St.burst('ring', c.x, c.y, 1, { speed: 0, size: Math.max(W, H) * 0.45, color: '#ffd23f', gravity: 0, life: 0.45 });
+      const f = $('#flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+    } else {
+      St.setPose('walk', 900);
+      St.advance(W * 0.9);
+      otRig.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(24px) rotate(6deg)', offset: 0.3 }, { transform: 'translateX(10px) rotate(3deg)', offset: 0.7 }, { transform: 'translateX(0)' }], { duration: St.q.reduce ? 1 : 900, easing: 'ease-out' });
+      for (let k = 0; k < 4; k++) setTimeout(() => St.burst('dust', c.x - 20, c.feet - 6, 6, { speed: 160, gravity: -30, size: 12, color: 'rgba(255,255,255,.8)', life: 0.6, angle: Math.PI, spread: 0.8 }), k * 120);
+    }
   };
   St.sleep = () => { asleep = true; ot.classList.add('asleep'); };
   St.wake = (silent) => { asleep = false; ot.classList.remove('asleep'); if (!silent) root.dispatchEvent(new CustomEvent('otoole-wake')); };
@@ -787,13 +846,18 @@
     const s = C.get();
     if (sceneIdx !== s.scene) St.setScene(s.scene);
     drawScene(dt);
+    // walking: the walk pose struts in time with the pace
+    const pace = C.pace(), walk = pace > 0;
+    if (!poseUntil && pose !== (walk ? 'walk' : 'stand')) St.setPose(walk ? 'walk' : 'stand');
+    ot.classList.toggle('walking', walk && pose === 'walk');
+    if (walk) ot.style.setProperty('--strut', (0.62 / (0.55 + pace * 0.6)).toFixed(3) + 's');
     drawCrowd(bx);
     // fx layer
     fx.setTransform(1, 0, 0, 1, 0, 0); fx.clearRect(0, 0, fxc.width, fxc.height); fx.setTransform(DPR, 0, 0, DPR, 0, 0);
     drawParts(fx, dt);
     updateEnemies(); updateBubbles(); updateGolden(); updateCams();
     // pose timing, idle & sleep
-    if (poseUntil && performance.now() > poseUntil) { poseUntil = 0; St.setPose('stand'); }
+    if (poseUntil && performance.now() > poseUntil) { poseUntil = 0; St.setPose(C.pace() > 0 ? 'walk' : 'stand'); }
     idleT += dt;
     if (!asleep && idleT > 120 && !s.enemies.length) St.sleep();
     if (asleep && Math.random() < dt * 0.8) { const c = St.otCenter(); St.burst('note', c.x + 30, c.top + 30, 1, { angle: -1.3, spread: 0.4, speed: 40, gravity: -20, size: 6, color: '#ffffff', txt: 'z', life: 2 }); }

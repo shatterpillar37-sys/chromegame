@@ -176,6 +176,13 @@
   I.star = `<path d="M32 4 L40 22 L60 24 L45 37 L50 57 L32 46 L14 57 L19 37 L4 24 L24 22 Z" fill="#ffd23f" ${sw}/>`;
   I.clock = `<circle cx="32" cy="32" r="24" fill="#fff" ${sw}/><path d="M32 16 V32 L42 38" fill="none" ${sw}/>`;
   I.play = `<path d="M18 10 L52 32 L18 54 Z" fill="#3ddc97" ${sw}/>`;
+  I.map = `<path d="M6 14 L22 8 L42 14 L58 8 V50 L42 56 L22 50 L6 56 Z" fill="#f4e3b5" ${sw}/><path d="M22 8 V50 M42 14 V56" stroke="${O}" stroke-width="2" opacity=".5"/><path d="M12 46 Q20 36 28 40 T44 26 L50 18" fill="none" stroke="#ff4d6d" stroke-width="3.5" stroke-dasharray="4 4"/><path d="M47 13 L53 19 M53 13 L47 19" stroke="${O}" stroke-width="3.5"/><circle cx="12" cy="46" r="3.5" fill="#3ddc97" stroke="${O}" stroke-width="2"/>`;
+  I.flag = `<path d="M14 6 V60" ${sw}/><path d="M16 8 H52 L44 20 L52 32 H16 Z" fill="#3ddc97" ${sw}/>`;
+  I.hype = `<path d="M8 26 H16 L44 10 V54 L16 38 H8 Z" fill="#ff4d6d" ${sw}/><path d="M16 38 L20 54 H28 L25 41" fill="#fff" ${sw}/><path d="M50 22 L58 18 M52 32 H60 M50 42 L58 46" stroke="#ffd23f" stroke-width="4" stroke-linecap="round"/>`;
+  I.shades = `<path d="M4 22 H60" ${sw}/><path d="M8 22 H28 Q28 40 18 40 Q8 40 8 22 Z M36 22 H56 Q56 40 46 40 Q36 40 36 22 Z" fill="#1b1330" ${sw}/><path d="M12 26 L18 26 M40 26 L46 26" stroke="#4cc9f0" stroke-width="3" stroke-linecap="round"/><path d="M50 50 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z M14 48 l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5z" fill="#ffd23f"/>`;
+  I.mic = `<rect x="22" y="4" width="20" height="30" rx="10" fill="#cfd6e6" ${sw}/><path d="M22 16 H42 M22 22 H42" stroke="${O}" stroke-width="2"/><path d="M14 26 Q14 44 32 44 Q50 44 50 26" fill="none" ${sw}/><path d="M32 44 V56 M22 58 H42" ${sw}/><path d="M4 10 L10 14 M60 10 L54 14 M2 24 H9 M62 24 H55" stroke="#ff4d6d" stroke-width="3.5" stroke-linecap="round"/>`;
+  I.dash = `<path d="M18 44 Q18 28 32 26 L40 25 L40 12 L52 12 L52 30 Q62 32 62 44 Z" fill="#fff" ${sw}/><rect x="16" y="44" width="48" height="8" rx="4" fill="#4cc9f0" ${sw}/><path d="M2 22 H14 M4 32 H14 M2 42 H12" stroke="#4cc9f0" stroke-width="4" stroke-linecap="round"/>`;
+  I.help = `<circle cx="32" cy="32" r="26" fill="#4cc9f0" ${sw}/><path d="M23 24 Q23 14 32 14 Q42 14 42 23 Q42 30 34 33 V39" fill="none" stroke="${O}" stroke-width="7" stroke-linecap="round"/><path d="M23 24 Q23 14 32 14 Q42 14 42 23 Q42 30 34 33 V39" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/><circle cx="34" cy="49" r="4.5" fill="#fff" stroke="${O}" stroke-width="2.5"/>`;
   A.I = I;
   A.icon = (key) => {
     let k = key;

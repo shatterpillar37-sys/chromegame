@@ -289,6 +289,30 @@
   fx.star = () => { const t = ac.currentTime;[72, 79, 84].forEach((n, i) => tone({ f: mtof(n), type: 'triangle', t: t + i * 0.07, len: 0.1, vol: 0.09, rev: 1 })); };
   fx.error = () => { tone({ f: 220, type: 'square', len: 0.1, vol: 0.05, lp: 1200 }); tone({ f: 196, type: 'square', t: ac.currentTime + 0.12, len: 0.15, vol: 0.05, lp: 1200 }); };
   fx.snore = () => noise({ f: 300, q: 2, len: 0.8, vol: 0.05, a: 0.4, sus: 0.8, r: 0.3 });
+  // arriving at a stop: a little brass fanfare in A-flat
+  fx.arrive = () => {
+    const t = ac.currentTime;
+    [[68, 0, 0.12], [72, 0.12, 0.12], [75, 0.24, 0.12], [80, 0.36, 0.5]].forEach(([n, d, l]) => { tone({ f: mtof(n), type: 'sawtooth', t: t + d, len: l, vol: 0.06, lp: 2600, a: 0.02, sus: 0.7, rev: 1 }); tone({ f: mtof(n - 12), type: 'square', t: t + d, len: l, vol: 0.035, lp: 1500, rev: 1 }); });
+    [56, 60, 63].forEach(n => tone({ f: mtof(n), type: 'triangle', t: t + 0.36, len: 0.6, vol: 0.06, sus: 0.7, r: 0.5, rev: 1 }));
+    noise({ f: 6000, q: 0.4, len: 0.4, vol: 0.05, t: t + 0.36, a: 0.01, sus: 0.3, r: 0.4 });
+  };
+  fx.hypeReady = (i) => { const t = ac.currentTime;[84, 88, 91].slice(0, i + 1).forEach((n, k) => tone({ f: mtof(n), type: 'sine', t: t + k * 0.05, len: 0.05, vol: 0.07, d: 0.2, sus: 0.01, r: 0.25, rev: 1 })); };
+  fx.move = (id) => {
+    const t = ac.currentTime;
+    if (id === 'strut') {
+      // a funky bass slide and a snappy chord
+      tone({ f: mtof(44), slide: mtof(56), type: 'sawtooth', t, len: 0.18, vol: 0.12, lp: 900 });
+      [68, 72, 75, 79].forEach(n => tone({ f: mtof(n), type: 'square', t: t + 0.16, len: 0.07, vol: 0.04, lp: 3000, rev: 1 }));
+      [68, 72, 75, 79].forEach(n => tone({ f: mtof(n + 2), type: 'square', t: t + 0.3, len: 0.12, vol: 0.04, lp: 3000, rev: 1 }));
+    } else if (id === 'show') {
+      noise({ f: 5000, q: 0.3, len: 0.9, vol: 0.12, a: 0.005, sus: 0.4, r: 0.8 });
+      [56, 63, 68, 72, 75, 80, 84].forEach((n, i) => tone({ f: mtof(n), type: i < 3 ? 'sawtooth' : 'triangle', t: t + i * 0.025, len: 0.7, vol: 0.05, lp: 3200, sus: 0.8, r: 0.6, rev: 1 }));
+      tone({ f: 70, slide: 45, type: 'sine', len: 0.4, vol: 0.4 });
+    } else {
+      fx.whooshBig();
+      [72, 76, 79, 84, 88].forEach((n, i) => tone({ f: mtof(n), type: 'square', t: t + 0.1 + i * 0.04, len: 0.06, vol: 0.05, lp: 5000, rev: 1 }));
+    }
+  };
   S.fx = (name, ...a) => { if (!ac || !fx[name]) return; try { fx[name](...a); } catch (e) {} };
 
   /* ---------------- adaptive music ---------------- */

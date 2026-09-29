@@ -112,6 +112,19 @@
   U('fame1', 'Fan Mail', 1e6, 'i:fame', 'Each achievement gives +1% more production.', { fame: 2 }, { ach: 10 });
   U('fame2', 'Autograph Tour', 1e11, 'i:fame', 'Each achievement gives +1% more production.', { fame: 1.5 }, { ach: 30 });
   U('fame3', 'Walk of Fame', 1e16, 'i:fame', 'Each achievement gives +1% more production.', { fame: 1.34 }, { ach: 55 });
+  // Hype, moves and the Long Walk
+  U('hype1', 'Hype Man', 3e3, 'i:hype', 'Hype builds 25% faster.', { hypeGain: 1.25 }, { hits: 60 });
+  U('hype2', 'Megaphone', 3e7, 'i:hype', 'Hype builds 25% faster.', { hypeGain: 1.25 }, { hypeSpent: 400 });
+  U('hype3', 'Hype Train', 3e12, 'i:hype', 'Hype builds 30% faster.', { hypeGain: 1.3 }, { hypeSpent: 3000 });
+  U('strut1', 'Swagger', 2e4, 'shades', 'Strut lasts 50% longer.', { strutDur: 1.5 }, { struts: 3 });
+  U('strut2', 'Peacock Walk', 2e8, 'shades', 'Strut multiplier +1.', { strutAdd: 1 }, { struts: 20 });
+  U('strut3', 'Runway Model', 2e14, 'shades', 'Strut multiplier +1, and it lasts 30% longer.', { strutAdd: 1, strutDur: 1.3 }, { struts: 80 });
+  U('show1', 'Jazz Hands', 6e4, 'mic', 'Showstoppers pay x1.5.', { showMult: 1.5 }, { shows: 2 });
+  U('show2', 'Standing O', 6e9, 'mic', 'Showstoppers pay x2.', { showMult: 2 }, { shows: 20 });
+  U('show3', 'Curtain Call', 6e15, 'mic', 'Showstoppers pay x2 and recharge 30% faster.', { showMult: 2, moveCd: 0.7 }, { shows: 80 });
+  U('road1', 'Road Map', 1.5e5, 'map', 'Rewards for reaching a stop x2.', { arrive: 2 }, { stops: 4 });
+  U('road2', 'Scenic Route', 1.5e9, 'map', 'Every stop gives +1% more production (10% → 11%).', { journeyAdd: 0.01 }, { stops: 8 });
+  U('road3', 'Frequent Walker Card', 1.5e14, 'map', 'Every stop gives +1% more production.', { journeyAdd: 0.01 }, { stops: 14 });
   U('prod1', 'Hop in Place', 5e4, 'i:prod', 'All production x1.1.', { prod: 1.1 });
   U('prod2', 'Morning Jog', 5e7, 'i:prod', 'All production x1.15.', { prod: 1.15 });
   U('prod3', 'Marathon Training', 5e10, 'i:prod', 'All production x1.2.', { prod: 1.2 });
@@ -241,6 +254,8 @@
     T('r8', 'rhythm', -1, -6, 'r7', 'Stage Presence', 90, 'Critical notes x3 stronger.', { critMult: 3 }),
     T('r9', 'rhythm', 1, -6, 'r7', 'Metronome Heart', 150, 'Your combo survives twice as long between songs.', { comboWin: 2 }),
     T('r10', 'rhythm', 0, -7, 'r7', 'Unplugged', 400, 'Notes x10. Verse bonus x5.', { click: 10, verse: 5 }),
+    T('r12', 'rhythm', 2, -3, 'r3', 'Hype Machine', 3, 'Hype builds 50% faster.', { hypeGain: 1.5 }),
+    T('r13', 'rhythm', -2, -3, 'r2', 'Catwalk', 3, 'Strut lasts twice as long.', { strutDur: 2 }),
     T('r11', 'rhythm', 0, -8, 'r10', 'Encore Forever', 1500, 'Notes x1.25 and verses x1.1 per level.', { click: 1.25, verse: 1.1 }, 50),
     // Hustle: right
     T('h1', 'hustle', 1, 0, 'root', 'Hustle', 1, 'Production x1.5.', { prod: 1.5 }),
@@ -253,6 +268,7 @@
     T('h8', 'hustle', 6, -1, 'h7', 'Sleepwalking', 100, 'Offline progress → 100%, cap 24h.', { offline: 0.25, offlineCap: 12 }),
     T('h9', 'hustle', 6, 1, 'h7', 'Monopoly', 200, 'Buildings cost 10% less. Production x2.', { cost: 0.9, prod: 2 }),
     T('h10', 'hustle', 7, 0, 'h7', 'Sneaker Empire', 500, 'Production x3.', { prod: 3 }),
+    T('h12', 'hustle', 5, -2, 'h5', 'Tour Bus', 10, 'Every stop gives +2% more production.', { journeyAdd: 0.02 }),
     T('h11', 'hustle', 8, 0, 'h10', 'Endless Hustle', 1500, 'Production x1.25 per level.', { prod: 1.25 }, 50),
     // Defiance: down
     T('d1', 'defy', 0, 1, 'root', 'Long Legs', 1, 'Stride +2.', { kick: 2 }),
@@ -263,7 +279,8 @@
     T('d6', 'defy', 1, 4, 'd4', 'Decoy Warehouse', 30, 'Decoys work 4x as well.', { guard: 3 }),
     T('d7', 'defy', 0, 5, 'd4', 'Death Grip', 60, 'Tugs steal 75% less. Stride x3.', { tug: 0.25, kickMult: 3 }),
     T('d8', 'defy', -1, 6, 'd7', 'Trophy Hunter', 120, 'Bosses drop +2 Golden Laces.', { bossGl: 2 }),
-    T('d9', 'defy', 1, 6, 'd7', 'Showstopper', 200, 'Finishing a verse leaves chasers far behind and spins bosses around.', { verseShock: 1 }),
+    T('d12', 'defy', 2, 3, 'd3', 'Warm-Up Lap', 8, '+0.3 Hype every second, even when you are not singing.', { hypeRegen: 0.3 }),
+    T('d9', 'defy', 1, 6, 'd7', 'Big Finish', 200, 'Finishing a verse leaves chasers far behind and spins bosses around.', { verseShock: 1 }),
     T('d10', 'defy', 0, 7, 'd7', 'The Two Men Give Up', 500, 'Chasers show up 40% less often. Tuxedo loot x3.', { heat: 0.6, enemyReward: 3 }),
     T('d11', 'defy', 0, 8, 'd10', 'Uncatchable', 1500, 'Stride x1.5 and loot x1.1 per level.', { kickMult: 1.5, enemyReward: 1.1 }, 50),
     // Fortune: left
@@ -277,6 +294,7 @@
     T('f8', 'luck', -6, -1, 'f7', 'Shard Alchemy', 100, 'Duplicate sneakers give x2 Lace Shards.', { shards: 2 }),
     T('f9', 'luck', -6, 1, 'f7', 'Midas Touch', 200, 'Golden Sneakers appear 30% more often.', { gold: 1.3 }),
     T('f10', 'luck', -7, 0, 'f7', 'Four-Leaf Laces', 500, 'Luck +50%. Mythic chance x2.', { luck: 0.5, mythic: 2 }),
+    T('f12', 'luck', -3, 2, 'f3', 'Souvenir Hunter', 6, 'Rewards for reaching a stop x2.', { arrive: 2 }),
     T('f11', 'luck', -8, 0, 'f10', 'Fortune Favors', 1500, 'Luck +5% and collection bonus x1.05 per level.', { luck: 0.05, collect: 1.05 }, 50),
   ];
 
@@ -284,7 +302,7 @@
   D.LOCKER = [
     { id: 'slot4',  name: 'Fourth Sneaker Slot',  cost: [5],   desc: 'Equip 4 sneakers at once.' },
     { id: 'slot5',  name: 'Fifth Sneaker Slot',   cost: [25],  desc: 'Equip 5 sneakers at once.', req: 'slot4' },
-    { id: 'autobox', name: 'Auto-Opener',         cost: [3],   desc: 'Shoeboxes can open themselves (toggle in Sneakers).' },
+    { id: 'autobox', name: 'Auto-Opener',         cost: [3],   desc: 'Shoeboxes can open themselves (toggle in the Closet).' },
     { id: 'autobuy', name: 'Building Manager',    cost: [10],  desc: 'Automatically buys the best-value building (toggle in Shop).' },
     { id: 'autoup', name: 'Upgrade Intern',       cost: [8],   desc: 'Automatically buys affordable upgrades (toggle in Shop).' },
     { id: 'wheelcap', name: 'Wheel Battery',      cost: [4],   desc: 'The Wheel stores 3 more charges.' },
@@ -304,8 +322,39 @@
     { id: 'speed', name: 'Speedrun',          goal: 1e12, desc: 'Reach the goal within 12 minutes.', reward: 'Production x3, forever.', fx: { prod: 3 }, timer: 720 },
   ];
 
-  /* ---------------- Scenes (a new one every Cutaway) ---------------- */
+  /* ---------------- Scenes & the Long Walk ----------------
+     O'Toole walks up the street forever. Every x10 Steps this run he reaches the next stop on the
+     route: new scenery, a reward, and a permanent (for this run) production bonus. */
   D.SCENES = ['Quahog', 'Texas Highway', 'Moon Base', 'Under the Sea', 'Broadway', 'Snowy Peaks', 'Neon City', 'The Sneaker Mall'];
+  D.STOPS = [
+    { name: 'Spooner Street',      scene: 0, blurb: 'Home sweet home. The walk begins.' },
+    { name: 'The Drunken Clam',    scene: 0, blurb: 'The regulars raise a glass as he struts past.' },
+    { name: 'Route 66 Diner',      scene: 1, blurb: 'Out on the open highway. The waitress asks about the sneakers. He says no.' },
+    { name: 'Tumbleweed Junction', scene: 1, blurb: 'Even the tumbleweeds are rolling alongside.' },
+    { name: 'Base Camp',           scene: 5, blurb: 'Hikers in heavy boots stare in disbelief.' },
+    { name: 'The Summit',          scene: 5, blurb: 'Top of the mountain. Still in sneakers. Still singing.' },
+    { name: 'Times Square',        scene: 4, blurb: 'The billboards are all him now.' },
+    { name: 'Opening Night',       scene: 4, blurb: 'A Broadway musical about the sneakers. Standing ovation.' },
+    { name: 'Arcade Alley',        scene: 6, blurb: 'High score on every machine, set without taking them off.' },
+    { name: 'Midnight Boulevard',  scene: 6, blurb: 'The whole city glows the color of his laces.' },
+    { name: 'The Food Court',      scene: 7, blurb: 'The Sneaker Mall. Forty-one floors of one thing.' },
+    { name: 'Floor 41',            scene: 7, blurb: 'The top floor sells one pair: the ones he is wearing. Not for sale.' },
+    { name: 'Coral Crossing',      scene: 3, blurb: 'He walked straight into the sea. The fish have questions.' },
+    { name: 'The Trench',          scene: 3, blurb: 'Seven miles down. The sneakers are somehow still dry.' },
+    { name: 'Tranquility Base',    scene: 2, blurb: 'One small step for a man. One giant hop in sneakers.' },
+    { name: 'The Dark Side',       scene: 2, blurb: 'The far side of the moon. The tuxedo men followed him here.' },
+  ];
+  D.STOP_BASE = 1e3;      // Steps this run to reach stop 1; every next stop is x10 further
+  D.STOP_BONUS = 1.1;     // production multiplier per stop reached this run
+
+  /* ---------------- Hype and moves ----------------
+     Singing on the beat pumps up the Hype meter. Spend it on moves that power up everything else. */
+  D.HYPE_MAX = 100;
+  D.MOVES = [
+    { id: 'strut',  name: 'Strut',       cost: 30,  cd: 0,  color: '#ffd23f', icon: 'shades', desc: 'Production x2 for 15 seconds.' },
+    { id: 'show',   name: 'Showstopper', cost: 60,  cd: 30, color: '#ff4d6d', icon: 'mic', desc: 'Instantly earn 15 seconds of production. Chasers fall way behind. Recharges in 30s.' },
+    { id: 'sprint', name: 'Sprint',      cost: 100, cd: 60, color: '#4cc9f0', icon: 'dash', desc: 'Every chaser gives up on the spot, bosses get half dizzy, and you grab a Shoebox. Recharges in 60s.' },
+  ];
 
   /* ---------------- News ticker ---------------- */
   D.NEWS = [
@@ -334,6 +383,17 @@
     [0, 'Man in bow tie reportedly still chasing a pair of sneakers "for years now."'],
     [0, 'Poll: 9 out of 10 people would also not take them off.'],
     [0, 'Gym teacher proposes "sneakers-on" policy for all of life. Motion passes.'],
+    [0, 'Tip: every 10x more Steps this run, O\'Toole reaches a new stop and production goes up for the rest of the run.'],
+    [0, 'Tip: singing builds Hype. Strut doubles production, so keep it running while you sing.'],
+    [0, 'Tip: Sprint makes every chaser give up at once, and they still drop their loot.'],
+    [0, 'Tip: hover (or long-press) almost anything to see what it does.'],
+    [1e3, 'Regulars at the Drunken Clam report "a man in sneakers, singing, walking, not stopping."'],
+    [1e5, 'Truckers on Route 66 slow down to hear the song. Traffic backed up for miles.'],
+    [1e7, 'Mountain rescue team finds hiker in sneakers at the summit. He declined rescue. And to remove his sneakers.'],
+    [1e9, 'Broadway critics: "The sneakers steal the show. The man inside them also refuses to leave."'],
+    [1e11, 'Sneaker Mall security confirms: the man on Floor 41 is not a mannequin.'],
+    [1e13, 'Marine biologists baffled by dry sneakers seven miles under the sea.'],
+    [1e15, 'NASA confirms first footprints on the Dark Side of the Moon are sneaker-shaped.'],
     [0, 'Tip: press each word\'s key as it lands on its keycap. Hit all eleven for a Perfect Verse.'],
     [0, 'Tip: keep singing and the next song starts by itself.'],
     [0, 'Tip: if hits feel early or late, adjust the timing offset in Settings.'],

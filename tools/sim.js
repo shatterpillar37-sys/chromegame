@@ -2,7 +2,7 @@
 // usage: node tools/sim.js [hours] [accuracy 0-1]
 const C = require('../js/core.js'), D = C.D;
 const HOURS = +process.argv[2] || 8, ACC = +(process.argv[3] || 0.85);
-let seed = 7; C.rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+let seed = +(process.env.SEED || 7); C.rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 C.load({});
 const S = () => C.get();
 const dt = 0.1; let t = 0, clickAcc = 0, kickAcc = 0, lastCut = 0, log = [];
@@ -11,6 +11,8 @@ const seen = {};
 C.on('cutaway', (g) => mark(`CUTAWAY #${S().cuts} +${g} SP (total ${S().spTotal})`));
 C.on('bossSpawn', () => { if (!seen.boss) { seen.boss = 1; mark('first boss'); } });
 C.on('tug', (e) => { if (e.boss) mark('boss FAILED'); });
+C.on('arrive', (st) => { if (S().cuts < 2 || st.k % 4 === 0) mark(`arrived at stop ${st.k}: ${st.name}`); });
+const moves = [0, 0, 0]; C.on('move', (mv) => moves[D.MOVES.indexOf(mv)]++);
 function bestPurchase() {
   const s = S(), m = C.mods();
   let best = null, bestV = 0;
@@ -25,7 +27,7 @@ for (t = 0; t < HOURS * 3600; t += dt) {
   const s = S();
   // the bot plays the rhythm game: restart the song after a short pause, hit words at ACC accuracy
   const song = C.song();
-  if (!song) { if ((s.songIdle || 0) > 0.5) C.startSong(s.time); }
+  if (!song) { if (ACC > 0 && (s.songIdle || 0) > 0.5) C.startSong(s.time); }
   else {
     const st = C.songTime();
     D.PHRASE.forEach((p, k) => {
@@ -41,6 +43,10 @@ for (t = 0; t < HOURS * 3600; t += dt) {
   kickAcc += 4 * dt;
   while (kickAcc >= 1 && s.enemies.length) { kickAcc--; const e = s.enemies.slice().sort((a, b) => b.p - a.p)[0]; C.kick(e.id); }
   if (kickAcc > 1) kickAcc = 1;
+  // moves: keep Strut up, Sprint when chased, otherwise Showstopper with the rest
+  if (C.canMove(0)) C.move(0);
+  else if (s.hype >= 100 && s.enemies.some(e => !e.boss)) C.move(2);
+  else if (s.hype >= 90 && C.canMove(1)) C.move(1);
   if (s.golden && s.golden.t > 2 && C.rand() < 0.9) C.clickGolden();
   s.cams.forEach(c => c.delay <= 0 && C.clickCam(c.id));
   if (Math.round(t * 10) % 10 === 0) {
@@ -59,7 +65,7 @@ for (t = 0; t < HOURS * 3600; t += dt) {
     const g = C.spGain();
     if (g >= Math.max(s.cuts ? 2 : 3, s.spTotal * 0.75) && t - lastCut > 300) { lastCut = t; C.cutaway(); }
   }
-  if (Math.round(t / dt) % Math.round(1800 / dt) === 0) mark(`steps=${C.fmt(s.steps)} sps=${C.fmt(C.sps())} all=${C.fmt(s.allSteps)} sp=${s.sp}/${s.spTotal} ach=${Object.keys(s.ach).length} uniq=${C.uniqueSneakers()} enemies=${s.stats.enemies} bosses=${s.stats.bosses} bld=${C.totalBuildings()} tree=${Object.keys(s.tree).length} gl=${s.gl}`);
+  if (Math.round(t / dt) % Math.round(1800 / dt) === 0) mark(`steps=${C.fmt(s.steps)} sps=${C.fmt(C.sps())} all=${C.fmt(s.allSteps)} sp=${s.sp}/${s.spTotal} ach=${Object.keys(s.ach).length} uniq=${C.uniqueSneakers()} enemies=${s.stats.enemies} bosses=${s.stats.bosses} bld=${C.totalBuildings()} tree=${Object.keys(s.tree).length} gl=${s.gl} stop=${s.stop} moves=${moves.join('/')}`);
   // first-time milestones
   D.BUILDINGS.forEach(b => { if (s.b[b.id] && !seen[b.id]) { seen[b.id] = 1; mark('first ' + b.name); } });
 }
